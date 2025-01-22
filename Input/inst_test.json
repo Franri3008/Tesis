@@ -6,7 +6,7 @@
             "surgeons": 8,
             "min_affinity": 1,
             "fichas": 40,
-            "time_limit": 300
+            "time_limit": 50
         }
     ]
 }
