@@ -2,7 +2,7 @@
     "configurations": [
         {
             "patients": "low",
-            "days": 6,
+            "days": 16,
             "surgeons": 8,
             "min_affinity": 1,
             "fichas": 40,
