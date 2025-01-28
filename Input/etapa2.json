@@ -2,6 +2,7 @@
     "configurations": [
         {
             "patients": "low",
+            "n_patients": 100,
             "days": 5,
             "surgeons": 12,
             "min_affinity": 1,
@@ -10,6 +11,7 @@
         },
         {
             "patients": "low",
+            "n_patients": 100,
             "days": 5,
             "surgeons": 18,
             "min_affinity": 1,
@@ -18,54 +20,7 @@
         },
         {
             "patients": "low",
-            "days": 5,
-            "surgeons": 24,
-            "min_affinity": 1,
-            "fichas": 40,
-            "time_limit": 3600
-        },
-        {
-            "patients": "high",
-            "days": 5,
-            "surgeons": 12,
-            "min_affinity": 1,
-            "fichas": 40,
-            "time_limit": 3600
-        },
-        {
-            "patients": "high",
-            "days": 5,
-            "surgeons": 18,
-            "min_affinity": 1,
-            "fichas": 40,
-            "time_limit": 3600
-        },
-        {
-            "patients": "high",
-            "days": 5,
-            "surgeons": 24,
-            "min_affinity": 1,
-            "fichas": 40,
-            "time_limit": 3600
-        },
-        {
-            "patients": "all",
-            "days": 5,
-            "surgeons": 12,
-            "min_affinity": 1,
-            "fichas": 40,
-            "time_limit": 3600
-        },
-        {
-            "patients": "all",
-            "days": 5,
-            "surgeons": 18,
-            "min_affinity": 1,
-            "fichas": 40,
-            "time_limit": 3600
-        },
-        {
-            "patients": "all",
+            "n_patients": 100,
             "days": 5,
             "surgeons": 24,
             "min_affinity": 1,
@@ -74,7 +29,8 @@
         },
         {
             "patients": "low",
-            "days": 10,
+            "n_patients": 150,
+            "days": 5,
             "surgeons": 12,
             "min_affinity": 1,
             "fichas": 40,
@@ -82,7 +38,8 @@
         },
         {
             "patients": "low",
-            "days": 10,
+            "n_patients": 150,
+            "days": 5,
             "surgeons": 18,
             "min_affinity": 1,
             "fichas": 40,
@@ -90,7 +47,35 @@
         },
         {
             "patients": "low",
-            "days": 10,
+            "n_patients": 150,
+            "days": 5,
+            "surgeons": 24,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "low",
+            "n_patients": 200,
+            "days": 5,
+            "surgeons": 12,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "low",
+            "n_patients": 200,
+            "days": 5,
+            "surgeons": 18,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "low",
+            "n_patients": 200,
+            "days": 5,
             "surgeons": 24,
             "min_affinity": 1,
             "fichas": 40,
@@ -98,7 +83,8 @@
         },
         {
             "patients": "high",
-            "days": 10,
+            "n_patients": 100,
+            "days": 5,
             "surgeons": 12,
             "min_affinity": 1,
             "fichas": 40,
@@ -106,7 +92,8 @@
         },
         {
             "patients": "high",
-            "days": 10,
+            "n_patients": 100,
+            "days": 5,
             "surgeons": 18,
             "min_affinity": 1,
             "fichas": 40,
@@ -114,7 +101,62 @@
         },
         {
             "patients": "high",
-            "days": 10,
+            "n_patients": 100,
+            "days": 5,
+            "surgeons": 24,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "high",
+            "n_patients": 150,
+            "days": 5,
+            "surgeons": 12,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "high",
+            "n_patients": 150,
+            "days": 5,
+            "surgeons": 18,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "high",
+            "n_patients": 150,
+            "days": 5,
+            "surgeons": 24,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "high",
+            "n_patients": 200,
+            "days": 5,
+            "surgeons": 12,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "high",
+            "n_patients": 200,
+            "days": 5,
+            "surgeons": 18,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "high",
+            "n_patients": 200,
+            "days": 5,
             "surgeons": 24,
             "min_affinity": 1,
             "fichas": 40,
@@ -122,7 +164,8 @@
         },
         {
             "patients": "all",
-            "days": 10,
+            "n_patients": 100,
+            "days": 5,
             "surgeons": 12,
             "min_affinity": 1,
             "fichas": 40,
@@ -130,7 +173,8 @@
         },
         {
             "patients": "all",
-            "days": 10,
+            "n_patients": 100,
+            "days": 5,
             "surgeons": 18,
             "min_affinity": 1,
             "fichas": 40,
@@ -138,7 +182,62 @@
         },
         {
             "patients": "all",
-            "days": 10,
+            "n_patients": 100,
+            "days": 5,
+            "surgeons": 24,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "all",
+            "n_patients": 150,
+            "days": 5,
+            "surgeons": 12,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "all",
+            "n_patients": 150,
+            "days": 5,
+            "surgeons": 18,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "all",
+            "n_patients": 150,
+            "days": 5,
+            "surgeons": 24,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "all",
+            "n_patients": 200,
+            "days": 5,
+            "surgeons": 12,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "all",
+            "n_patients": 200,
+            "days": 5,
+            "surgeons": 18,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        },
+        {
+            "patients": "all",
+            "n_patients": 200,
+            "days": 5,
             "surgeons": 24,
             "min_affinity": 1,
             "fichas": 40,

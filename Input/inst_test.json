@@ -2,8 +2,9 @@
     "configurations": [
         {
             "patients": "low",
-            "days": 11,
-            "surgeons": 8,
+            "n_patients": 200,
+            "days": 1,
+            "surgeons": 12,
             "min_affinity": 1,
             "fichas": 40,
             "time_limit": 1800
