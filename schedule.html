@@ -1,0 +1,284 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+  }
+  table {
+      border-collapse: collapse;
+      margin: 0 auto;
+  }
+  th, td {
+      border: 1px solid #444;
+      padding: 5px;
+      text-align: center;
+      width: 150px; /* Fixed column width */
+      position: relative;
+  }
+  th:first-child, td:first-child {
+      width: 60px; /* Time column a bit narrower */
+  }
+  .main-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 80%;
+  }
+  .legend {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      position: fixed;
+      right: 20px;
+      top: 20px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+  }
+  .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+  }
+  .legend-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border: 1px solid #ccc;
+  }
+  .slider-container {
+      margin: 20px 0;
+      text-align: center;
+  }
+  .slider {
+      width: 300px;
+  }
+  .cell {
+      padding: 3px;
+      border-radius: 3px;
+      position: relative;
+  }
+  .invalid {
+      color: red;
+      position: relative;
+  }
+  .invalid::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 0, 0, 0.7); /* red overlay */
+      border-radius: 3px;
+      pointer-events: none;
+      z-index: -1; /* send overlay behind cell content */
+  }
+  .cell:hover {
+      cursor: help;
+  }
+  .cell:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: white;
+      padding: 5px;
+      border-radius: 4px;
+      font-size: 14px;
+      white-space: pre-line;
+      z-index: 1000;
+      min-width: 200px;
+  }
+</style>
+<script>
+function updateDay() {
+    var d = document.getElementById('day_slider').value;
+    document.getElementById('day_value').textContent = d;
+    var all_divs = document.getElementsByClassName('day_div');
+    for (var i = 0; i < all_divs.length; i++) {
+        all_divs[i].style.display = 'none';
+    }
+    document.getElementById('day' + d).style.display = 'block';
+}
+</script>
+</head>
+<body>
+<div class="main-content">
+    <h1>Schedule</h1>
+    <div class="slider-container">
+        <input type="range" min="0" max="2" value="0" class="slider" id="day_slider" oninput="updateDay()">
+        <div>Day: <span id="day_value">0</span></div>
+    </div>
+<div id="day0" class="day_div" style="display:block"><table>
+<thead>
+<tr><th>Time  </th><th>OR 0                                                                                                                                 </th><th>OR 1                                                                                                                                </th><th>OR 2                                                                                                                                </th><th>OR 3                                                                                                                                      </th></tr>
+</thead>
+<tbody>
+<tr><td>t 00  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: FRANCO ANTONINO ORTEGA CABA">p: 134 m: 06 s: 01</div>    </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: CESAR FERRADA GUTIERREZ">p: 132 m: 00 s: 09</div>       </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="Patient: JUANA DIOSA ORELLANA QUIÑONES">p: 012 m: 11 s: 07</div> </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: GLORIA DEL CARMEN  PAVEZ VALDEBENITO">p: 021 m: 02 s: 10</div></td></tr>
+<tr><td>t 01  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: GISSELLE MACARENA VEJAR RAMIREZ">p: 151 m: 06 s: 01</div></td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: PAULINA ELIZABETH ROJAS RIOS">p: 127 m: 00 s: 05</div>  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: RAQUEL AURORA CONTADOR JIMENEZ">p: 037 m: 08 s: 11</div>      </td></tr>
+<tr><td>t 02  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: MARCELA ANDREA JARA ROCHA">p: 133 m: 06 s: 01</div>      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: DIEGO OSVALDO FIGUEROA RUBILAR">p: 185 m: 00 s: 11</div></td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: CECILIA IVONNE VALDEBENITO CARTES">p: 099 m: 02 s: 07</div>   </td></tr>
+<tr><td>t 03  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                   </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: SANDRA Y. CARRACO CID">p: 103 m: 02 s: 10</div>               </td></tr>
+<tr><td>t 04  </td><td><div class="cell invalid" style="background-color: #E5FFE5;" data-tooltip="Patient: ANGEL COLIN CAMPOS VALENZUELA
+Invalid because: Surgeon double-booked">p: 196 m: 04 s: 02</div>                                                                                                                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: SANDRA Y. CARRACO CID
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 103 m: 02 s: 10</div>                                                                                                                                           </td></tr>
+<tr><td>t 05  </td><td><div class="cell invalid" style="background-color: #E5FFE5;" data-tooltip="Patient: ANGEL COLIN CAMPOS VALENZUELA
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 196 m: 04 s: 02</div>                                                                                                                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: BLANCA ROSA RIVERA MARTINEZ
+Invalid because: Surgeon double-booked">p: 120 m: 02 s: 05</div>                                                                                                                                           </td></tr>
+<tr><td>t 06  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                   </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: MARIA CRISTINA DÍAZ GONZÁLEZ">p: 125 m: 08 s: 09</div>        </td></tr>
+<tr><td>t 07  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                   </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: EMA ELVIRA PEMPELFORT PALMA
+Invalid because: Incompatible specialty">p: 143 m: 01 s: 07</div>                                                                                                                                           </td></tr>
+<tr><td>t 08  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="Patient: EYTAN IGNACIO ISAY RUIZ PUIGAN">p: 197 m: 04 s: 02</div> </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: OSVALDO ENRIQUE CACERES PEREZ">p: 145 m: 01 s: 07</div>       </td></tr>
+<tr><td>t 09  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                   </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: VIOLETA CANALES SEPULVEDA
+Invalid because: Incompatible specialty; Surgeon double-booked">p: 013 m: 08 s: 09</div>                                                                                                                                     </td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: NATALY ALEJANDRA CHUREO SALGADO
+Invalid because: Surgeon double-booked">p: 150 m: 07 s: 08</div>                                                                                                                                           </td></tr>
+<tr><td>t 10  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                   </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: NILDA SANDOVAL MALDONADO
+Invalid because: Incompatible specialty">p: 018 m: 02 s: 10</div>                                                                                                                                     </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: NANCY GLORIA ERICES FLORES">p: 159 m: 01 s: 04</div>          </td></tr>
+<tr><td>t 11  </td><td><div class="cell invalid" style="background-color: #E5FFE5;" data-tooltip="Patient: CRISTÓBAL FABIÁN ARIAS POBLETE
+Invalid because: Surgeon double-booked">p: 198 m: 04 s: 02</div>                                                                                                                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="Patient: SEGUNDO CUSTODIO PICHUN BUSTOS">p: 022 m: 05 s: 03</div></td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: HELMUTH FERNANDO ARIAS NAVARRO
+Invalid because: Surgeon double-booked">p: 161 m: 07 s: 04</div>                                                                                                                                           </td></tr>
+<tr><td>t 12  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="Patient: JOSE SOTO ROJAS">p: 199 m: 10 s: 11</div>                </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="Patient: SEGUNDO CUSTODIO PICHUN BUSTOS">p: 022 m: 05 s: 03</div></td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: ELIA DEL CARMEN PEREIRA SOBARZO">p: 162 m: 07 s: 01</div>     </td></tr>
+<tr><td>t 13  </td><td><div class="cell invalid" style="background-color: #E5FFE5;" data-tooltip="Patient: JOSE SOTO ROJAS
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 199 m: 10 s: 11</div>                                                                                                                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: ELVIRA MEDINA CEA
+Invalid because: Surgeon double-booked">p: 052 m: 11 s: 07</div>                                                                                                                                     </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="No patient scheduled">---</div>                                        </td></tr>
+<tr><td>t 14  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                   </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: CARLOS EDUARDO ANTON FLORES FLORES
+Invalid because: Incompatible specialty">p: 113 m: 09 s: 07</div>                                                                                                                                     </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="No patient scheduled">---</div>                                        </td></tr>
+<tr><td>t 15  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                   </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: MARIA TERESA LEAL FERNANDEZ
+Invalid because: Incompatible specialty">p: 077 m: 01 s: 07</div>                                                                                                                                     </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="No patient scheduled">---</div>                                        </td></tr>
+</tbody>
+</table></div>
+<div id="day1" class="day_div" style="display:none"><table>
+<thead>
+<tr><th>Time  </th><th>OR 0                                                                                                                                  </th><th>OR 1                                                                                                                                    </th><th>OR 2                                                                                                                                   </th><th>OR 3                                                                                                                                   </th></tr>
+</thead>
+<tbody>
+<tr><td>t 00  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="Patient: ISOLINA DEL CARMEN CARVAJAL BUSTOS">p: 000 m: 09 s: 07</div></td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: ROSA ESTER RÍOS LEIVA">p: 147 m: 08 s: 03</div>            </td></tr>
+<tr><td>t 01  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: ROSA ESTER RÍOS LEIVA">p: 147 m: 08 s: 03</div>            </td></tr>
+<tr><td>t 02  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: JUANA MARIA ALVAREZ LEIVA">p: 152 m: 02 s: 07</div>        </td></tr>
+<tr><td>t 03  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: MARIA PAREDES PARADA">p: 153 m: 02 s: 05</div>             </td></tr>
+<tr><td>t 04  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: MARIA PAREDES PARADA">p: 153 m: 02 s: 05</div>             </td></tr>
+<tr><td>t 05  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: FLORELINA DEL CARMEN BURGOS OÑATE">p: 154 m: 08 s: 01</div></td></tr>
+<tr><td>t 06  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: SILVIA CRISTINA MARIHUEN FUENTES">p: 024 m: 11 s: 07</div> </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: FLORELINA DEL CARMEN BURGOS OÑATE">p: 154 m: 08 s: 01</div></td></tr>
+<tr><td>t 07  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: ADRIAN FROILAN RIQUELME NAVARRETE">p: 177 m: 11 s: 07</div></td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: ERNA ENRIQUETA MENDOZA SAGARDIA">p: 155 m: 08 s: 03</div>  </td></tr>
+<tr><td>t 08  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="Patient: MARLENE CATERYN SEPULVEDA SEGUEL">p: 043 m: 01 s: 06</div></td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: IRMA AIDA SANHUEZA CARDENAS
+Invalid because: Surgeon double-booked">p: 031 m: 05 s: 09</div>                                                                                                                                        </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: MARIA INES MORIS RUIZ
+Invalid because: Surgeon double-booked">p: 160 m: 02 s: 05</div>                                                                                                                                        </td></tr>
+<tr><td>t 09  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="Patient: LAURA CID PONSOT">p: 084 m: 01 s: 07</div>                </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                      </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: JOSE EDGARDO ERICES VALDEBENITO">p: 131 m: 11 s: 09</div>  </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="Patient: CAROLINA CECILIA FLORES FERRADA">p: 193 m: 02 s: 06</div>  </td></tr>
+<tr><td>t 10  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="Patient: BÁRBARA ANDREA BOISIER ULLOA">p: 187 m: 07 s: 08</div>    </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: ROSA YANET TILLERIA BRAVO
+Invalid because: Surgeon double-booked">p: 001 m: 03 s: 11</div>                                                                                                                                         </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: ALBA NELIDA ORTEGA SOTO
+Invalid because: Surgeon double-booked">p: 190 m: 05 s: 03</div>                                                                                                                                        </td><td><div class="cell" style="background-color: #E5E5FF;" data-tooltip="No patient scheduled">---</div>                                     </td></tr>
+<tr><td>t 11  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="Patient: ANIBAL EDUARDO BURDILES MEDINA">p: 088 m: 07 s: 08</div>  </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: ROSA YANET TILLERIA BRAVO
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 001 m: 03 s: 11</div>                                                                                                                                         </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: ANA  ALTEMISA SOTO MUÑOZ
+Invalid because: Surgeon double-booked">p: 033 m: 05 s: 03</div>                                                                                                                                        </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: ALEJANDRA MARISOL LIZANA MEZA
+Invalid because: Incompatible specialty">p: 168 m: 09 s: 06</div>                                                                                                                                        </td></tr>
+<tr><td>t 12  </td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: ANDRES ROLANDO CAMPOS TRONCOSO
+Invalid because: Surgeon double-booked">p: 119 m: 07 s: 08</div>                                                                                                                                       </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: JOSE AGUSTIN BAHAMONDES CEA
+Invalid because: Surgeon double-booked">p: 002 m: 03 s: 05</div>                                                                                                                                         </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: ANA  ALTEMISA SOTO MUÑOZ
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 033 m: 05 s: 03</div>                                                                                                                                        </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: PATRICIA RIQUELME GONZALEZ
+Invalid because: Surgeon double-booked">p: 173 m: 08 s: 01</div>                                                                                                                                        </td></tr>
+<tr><td>t 13  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="Patient: JONATHAN PHILLIP FLORES SEGUEL">p: 141 m: 01 s: 07</div>  </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: MARIA FLORENTINA MUÑOZ LINCO
+Invalid because: Surgeon double-booked">p: 003 m: 03 s: 11</div>                                                                                                                                         </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: MIRIAM DEL CARMEN PALACIOS NAHUEL
+Invalid because: Incompatible specialty; Surgeon double-booked">p: 174 m: 11 s: 00</div>                                                                                                                                        </td></tr>
+<tr><td>t 14  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="Patient: EDGARD NEFTALY MUÑOZ ROCHA">p: 179 m: 01 s: 06</div>      </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: TERESA AMANDA VILCHE SEPULVEDA
+Invalid because: Surgeon double-booked">p: 004 m: 03 s: 05</div>                                                                                                                                         </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: JUAN ALBERTO REYES GONZALEZ
+Invalid because: Surgeon double-booked">p: 094 m: 05 s: 09</div>                                                                                                                                        </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: NOEMI ALEJANDRA CIFUENTES SAN MARTÍN
+Invalid because: Incompatible specialty; Surgeon double-booked">p: 189 m: 07 s: 09</div>                                                                                                                                        </td></tr>
+<tr><td>t 15  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                    </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="Patient: TERESA AMANDA VILCHE SEPULVEDA">p: 004 m: 03 s: 05</div>    </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: NOEMI ALEJANDRA CIFUENTES SAN MARTÍN
+Invalid because: Incompatible specialty; Non-consecutive blocks">p: 189 m: 07 s: 09</div>                                                                                                                                        </td></tr>
+</tbody>
+</table></div>
+<div id="day2" class="day_div" style="display:none"><table>
+<thead>
+<tr><th>Time  </th><th>OR 0                                                                                                                           </th><th>OR 1                                                                                                                                </th><th>OR 2                                                                                                                                       </th><th>OR 3                                                                                                                                   </th></tr>
+</thead>
+<tbody>
+<tr><td>t 00  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                         </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: JOCELYN MARISELLA MUÑOZ JARA">p: 166 m: 07 s: 10</div>     </td></tr>
+<tr><td>t 01  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                         </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: JOSE DELFIN CAMPOS ISLA">p: 163 m: 07 s: 01</div>          </td></tr>
+<tr><td>t 02  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                         </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: JOSE DELFIN CAMPOS ISLA">p: 163 m: 07 s: 01</div>          </td></tr>
+<tr><td>t 03  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                         </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: GERARDO ALEXIS HENRIQUEZ TORRES">p: 165 m: 07 s: 09</div>  </td></tr>
+<tr><td>t 04  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                         </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: MELISA FABIOLA VASQUEZ VASQUEZ">p: 122 m: 01 s: 06</div>   </td></tr>
+<tr><td>t 05  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell" style="background-color: #E5FFE5;" data-tooltip="No patient scheduled">---</div>                                         </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="No patient scheduled">---</div>                                     </td></tr>
+<tr><td>t 06  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: LUIS ALEJANDRO PACHECO LAGOS
+Invalid because: Incompatible specialty; Surgeon double-booked">p: 195 m: 06 s: 01</div>                                                                                                                                            </td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: DANIEL ANDRES CARO HIDALGO
+Invalid because: Surgeon double-booked">p: 188 m: 01 s: 07</div>                                                                                                                                        </td></tr>
+<tr><td>t 07  </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: MARGARITA PAINE HUENTEMIL
+Invalid because: Surgeon double-booked">p: 051 m: 11 s: 01</div>                                                                                                                                            </td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: DANIEL ANDRES CARO HIDALGO
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 188 m: 01 s: 07</div>                                                                                                                                        </td></tr>
+<tr><td>t 08  </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: UBERLINDA BECERRA GODOY">p: 061 m: 01 s: 07</div>  </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="Patient: SANTIAGO SEGUNDO MUÑOZ FUENTES">p: 005 m: 09 s: 06</div></td><td><div class="cell" style="background-color: #FFFFE5;" data-tooltip="Patient: AUDOLIA DEL ROSARIO SAN MARTIN QUIROZ">p: 129 m: 05 s: 03</div></td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td></tr>
+<tr><td>t 09  </td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: MARIA ELENA PEREIRA JIMENEZ
+Invalid because: Surgeon double-booked">p: 041 m: 07 s: 09</div>                                                                                                                                </td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: HECTOR OMAR TRAMOLAO FERNANDEZ
+Invalid because: Surgeon double-booked">p: 053 m: 11 s: 07</div>                                                                                                                                            </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td></tr>
+<tr><td>t 10  </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="Patient: EDUARDO ARMANDO PEÑA VERA">p: 175 m: 01 s: 06</div></td><td><div class="cell" style="background-color: #E5FFFF;" data-tooltip="No patient scheduled">---</div>                                  </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: JOSE MANUEL CHANDIA CATRIUPAY
+Invalid because: Incompatible specialty; Surgeon double-booked">p: 032 m: 08 s: 02</div>                                                                                                                                            </td><td><div class="cell invalid" style="background-color: #E5E5FF;" data-tooltip="Patient: PATRICIA VIVIANA  LEIVA CARRASCO
+Invalid because: Surgeon double-booked">p: 167 m: 02 s: 05</div>                                                                                                                                        </td></tr>
+<tr><td>t 11  </td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: CAMILA ANDREA CEA JARA
+Invalid because: Incompatible specialty; Surgeon double-booked">p: 171 m: 00 s: 11</div>                                                                                                                                </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: IRMA MARTINA  HERRERA GUTIERREZ
+Invalid because: Surgeon double-booked">p: 006 m: 09 s: 07</div>                                                                                                                                     </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: JUAN BAUTISTA GUTIÉRREZ  NAHUEL
+Invalid because: Surgeon double-booked">p: 136 m: 11 s: 09</div>                                                                                                                                            </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td></tr>
+<tr><td>t 12  </td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: CARINA AIDET ARAVENA MARTINEZ
+Invalid because: Surgeon double-booked">p: 170 m: 07 s: 03</div>                                                                                                                                </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: IRMA MARTINA  HERRERA GUTIERREZ
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 006 m: 09 s: 07</div>                                                                                                                                     </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: MARIA FLORISA RUIZ PARRA
+Invalid because: Surgeon double-booked">p: 140 m: 11 s: 09</div>                                                                                                                                            </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td></tr>
+<tr><td>t 13  </td><td><div class="cell invalid" style="background-color: #FFE5FF;" data-tooltip="Patient: CARINA AIDET ARAVENA MARTINEZ
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 170 m: 07 s: 03</div>                                                                                                                                </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: SOLEDAD DE LAS ROSAS CIFUENTES ZAMBRANO
+Invalid because: Surgeon double-booked">p: 007 m: 09 s: 07</div>                                                                                                                                     </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: MARLENE  HAYDEE ESPINOZA DIAZ
+Invalid because: Surgeon double-booked">p: 039 m: 11 s: 09</div>                                                                                                                                            </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="Patient: MAGALY DEL CARMEN VARELA ZAMBRANO">p: 172 m: 08 s: 02</div></td></tr>
+<tr><td>t 14  </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: ROSA FLOR INZUNZA CACERES
+Invalid because: Surgeon double-booked">p: 008 m: 09 s: 06</div>                                                                                                                                     </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: MARLENE  HAYDEE ESPINOZA DIAZ
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 039 m: 11 s: 09</div>                                                                                                                                            </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td></tr>
+<tr><td>t 15  </td><td><div class="cell" style="background-color: #FFE5FF;" data-tooltip="No patient scheduled">---</div>                             </td><td><div class="cell invalid" style="background-color: #E5FFFF;" data-tooltip="Patient: ROSA FLOR INZUNZA CACERES
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 008 m: 09 s: 06</div>                                                                                                                                     </td><td><div class="cell invalid" style="background-color: #FFFFE5;" data-tooltip="Patient: MARLENE  HAYDEE ESPINOZA DIAZ
+Invalid because: Surgeon double-booked; Non-consecutive blocks">p: 039 m: 11 s: 09</div>                                                                                                                                            </td><td><div class="cell" style="background-color: #FFE5E5;" data-tooltip="No patient scheduled">---</div>                                     </td></tr>
+</tbody>
+</table></div>
+</div>
+
+    <div class="legend">
+        <h3>Specialties</h3>
+
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #FFE5E5"></div>
+            <div>CIRUGIA GENERAL </div>
+        </div>
+
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #E5FFE5"></div>
+            <div>CIRUGIA INFANTIL</div>
+        </div>
+
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #E5E5FF"></div>
+            <div>GINECOLOGIA</div>
+        </div>
+
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #FFFFE5"></div>
+            <div>OFTALMOLOGIA</div>
+        </div>
+
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #FFE5FF"></div>
+            <div>OTORRINOLARINGOLOGIA</div>
+        </div>
+
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #E5FFFF"></div>
+            <div>TRAUMATOLOGIA</div>
+        </div>
+
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #FFE0B2"></div>
+            <div>DENTAL</div>
+        </div>
+</div>
+</body>
+</html>
