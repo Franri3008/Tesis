@@ -3,7 +3,7 @@
         {
             "patients": "high",
             "n_patients": 200,
-            "days": 3,
+            "days": 5,
             "surgeons": 12,
             "min_affinity": 1,
             "fichas": 40,
