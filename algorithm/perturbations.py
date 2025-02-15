@@ -15,124 +15,177 @@ def is_feasible_block(p, o, d, t, AOR):
         return True
     return False
 
-def CambiarPrimarios(sol, OT, SP=None, fichas=None, dictCosts=None, nSlot=None, nDays=None, hablar=False):
-    """
-    Swap the main surgeons of two different scheduled patients, only if:
-    1. Each new main surgeon is allowed for that patient (SP).
-    2. There's enough fichas on the day for each new assignment.
-    3. The swap is otherwise feasible.
-    """
-    pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy()
+
+##################################
+######### Perturbaciones #########
+##################################
+
+def CambiarPrimarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
+    surgeon_schedule = solucion[1].copy();
+    or_schedule = solucion[2].copy();
+    fichas = solucion[3].copy();
+    pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy();
     scheduled = [i for i, blk in enumerate(pacientes) if blk != -1]
     if len(scheduled) < 2:
-        if hablar:
-            print("[CambiarPrimarios] No hay suficientes pacientes para el cambio.")
-        return (pacientes, primarios, secundarios)
+        print("[CambiarPrimarios] No hay suficientes pacientes para el cambio.") if hablar else None;
+        return solucion
 
+    valid_pairs = [];
+    for i in range(len(scheduled)):
+        for j in range(i + 1, len(scheduled)):
+            p1 = scheduled[i];
+            p2 = scheduled[j];
+            start1 = pacientes[p1];
+            start2 = pacientes[p2];
+            dur1 = OT[p1];
+            dur2 = OT[p2];
+            o1, d1, t1 = decompress(start1, nSlot, nDays);
+            o2, d2, t2 = decompress(start2, nSlot, nDays);
+            cir1 = primarios[start1];
+            cir2 = primarios[start2];
+            sec1 = secundarios[start1];
+            sec2 = secundarios[start2];
+
+            can_swap = True;
+            # Si hay problemas de compatibilidad:
+            if SP[p1][cir2] != 1 or SP[p2][cir1] != 1 or cir1 == sec2 or cir2 == sec1 or cir1 == cir2:
+                can_swap = False;
+                continue;
+            # Si no hay suficientes fichas:
+            for d_aux in range(d2, nDays):
+                if (dictCosts[(cir1, sec2, start2)] > fichas[(cir1, d_aux)] + dictCosts[(cir1, sec1, start1)] * (d_aux >= d1)):
+                    can_swap = False;
+                    break;
+            for d_aux in range(d1, nDays):
+                if (dictCosts[(cir2, sec1, start1)] > fichas[(cir2, d_aux)] + dictCosts[(cir2, sec2, start2)] * (d_aux >= d2)):
+                    can_swap = False;
+                    break;
+            # Si uno de los cirujanos no está disponible para toda la duración de la nueva cirugía:
+            if not all(surgeon_schedule[cir2][d1][t1 + b] == -1 for b in range(dur1)):
+                can_swap = False;
+            if not all(surgeon_schedule[cir1][d2][t2 + b] == -1 for b in range(dur2)):
+                can_swap = False;
+            
+            if can_swap:
+                valid_pairs.append((p1, p2));
+
+    if not valid_pairs:
+        print("[CambiarPrimarios] No hay parejas válidas para el swap.") if hablar else None;
+        #return (pacientes, primarios, secundarios)
+        return solucion
+
+    p1, p2 = random.choice(valid_pairs);
+    start1 = pacientes[p1];
+    start2 = pacientes[p2];
+    cir1 = primarios[start1];
+    cir2 = primarios[start2];
+    sec1 = secundarios[start1];
+    sec2 = secundarios[start2];
+    dur1 = OT[p1];
+    dur2 = OT[p2];
+    o1, d1, t1 = decompress(start1, nSlot, nDays);
+    o2, d2, t2 = decompress(start2, nSlot, nDays);
+
+    for d_aux in range(nDays):
+        if d_aux >= d1:
+            fichas[(cir1, d_aux)] += dictCosts[(cir1, sec1, start1)];# - dictCosts[(main1, sec2, start2)];
+            fichas[(cir2, d_aux)] -= dictCosts[(cir2, sec1, start1)];
+        if d_aux >= d2:
+            fichas[(cir1, d_aux)] -= dictCosts[(cir1, sec1, start1)];
+            fichas[(cir2, d_aux)] += dictCosts[(cir2, sec2, start2)];# - dictCosts[(main2, sec1, start1)];
+
+    print(f"[CambiarPrimarios] Cambiando cirujanos p={p1} ({cir1}) <-> p={p2} ({cir2}).") if hablar else None;
+    for b in range(dur1):
+        primarios[start1 + b] = cir2;
+        surgeon_schedule[cir1][d1][t1 + b] = -1;
+        surgeon_schedule[cir2][d1][t1 + b] = p1;
+    for b in range(dur2):
+        primarios[start2 + b] = cir1;
+        surgeon_schedule[cir1][d2][t2 + b] = p2;
+        surgeon_schedule[cir2][d2][t2 + b] = -1;
+    return ((pacientes, primarios, secundarios), surgeon_schedule, or_schedule, fichas)
+
+def CambiarSecundarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
+    surgeon_schedule = solucion[1].copy();
+    or_schedule = solucion[2].copy();
+    fichas = solucion[3].copy();
+    pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy();
+    scheduled = [i for i, blk in enumerate(pacientes) if blk != -1]
+    if len(scheduled) < 2:
+        print("[CambiarSecundarios] No hay suficientes pacientes para el cambio.") if hablar else None;
+        return solucion
+    
     valid_pairs = []
     for i in range(len(scheduled)):
         for j in range(i + 1, len(scheduled)):
-            p1 = scheduled[i]
-            p2 = scheduled[j]
-            start1 = pacientes[p1]
-            start2 = pacientes[p2]
-            cir1 = primarios[start1]
-            cir2 = primarios[start2]
-            sec1 = secundarios[start1]
-            sec2 = secundarios[start2]
-            can_swap = True
-            if SP is not None:
-                if SP[p1][cir2] != 1 or SP[p2][cir1] != 1 or cir1 == sec2 or cir2 == sec1:
-                    can_swap = False
-            if can_swap:
-                valid_pairs.append((p1, p2))
-
-    if not valid_pairs:
-        return (pacientes, primarios, secundarios)
-
-    p1, p2 = random.choice(valid_pairs)
-    s1 = pacientes[p1]
-    s2 = pacientes[p2]
-    old_main1 = primarios[s1]
-    old_main2 = primarios[s2]
-    sec1 = secundarios[s1]
-    sec2 = secundarios[s2]
-    dur1 = OT[p1]
-    dur2 = OT[p2]
-    o1, d1, t1 = decompress(s1, nSlot, nDays)
-    o2, d2, t2 = decompress(s2, nSlot, nDays)
-    new_main_for_p1 = old_main2
-    new_main_for_p2 = old_main1
-    if dictCosts is not None:
-        c1 = dictCosts.get((new_main_for_p1, sec1, s1), 999999)
-        c2 = dictCosts.get((new_main_for_p2, sec2, s2), 999999)
-    else:
-        c1 = 0
-        c2 = 0
-    enough_f1 = True
-    enough_f2 = True
-    if fichas is not None:
-        if fichas[(new_main_for_p1, d1)] < c1:
-            enough_f1 = False
-        if fichas[(new_main_for_p2, d2)] < c2:
-            enough_f2 = False
-    if not (enough_f1 and enough_f2):
-        if hablar:
-            print("[CambiarPrimarios] No hay fichas suficientes para hacer el swap.")
-        return (pacientes, primarios, secundarios)
-    if fichas is not None:
-        fichas[(new_main_for_p1, d1)] -= c1
-        fichas[(new_main_for_p2, d2)] -= c2
-    if hablar:
-        print(f"Cambiando cirujanos p={p1}({old_main1}) <-> p={p2}({old_main2}).")
-    for b in range(dur1):
-        primarios[s1 + b] = new_main_for_p1
-    for b in range(dur2):
-        primarios[s2 + b] = new_main_for_p2
-    return (pacientes, primarios, secundarios)
-
-def CambiarSecundarios(sol, OT, SP=None, hablar=False):
-    """
-    Swap the secondary surgeons of two different scheduled patients,
-    but only if it is feasible.
-    Otherwise do nothing.
-    """
-    pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy()
-    scheduled = [i for i, blk in enumerate(pacientes) if blk != -1]
-    if len(scheduled) < 2:
-        return (pacientes, primarios, secundarios)
-    valid_pairs = []
-    for i in range(len(scheduled)):
-        for j in range(i + 1, len(scheduled)):
-            p1 = scheduled[i]
-            p2 = scheduled[j]
-            t1 = pacientes[p1]
-            t2 = pacientes[p2]
-            sec1 = secundarios[t1]
-            sec2 = secundarios[t2]
-            cir1 = primarios[t1]
-            cir2 = primarios[t2]
-            can_swap = True
-            if cir1 == sec2 or cir2 == sec1:
-                can_swap = False
+            p1 = scheduled[i];
+            p2 = scheduled[j];
+            blk1 = pacientes[p1];
+            blk2 = pacientes[p2];
+            o1, d1, t1 = decompress(blk1, nSlot, nDays);
+            o2, d2, t2 = decompress(blk2, nSlot, nDays);
+            dur1 = OT[p1];
+            dur2 = OT[p2];
+            sec1 = secundarios[blk1];
+            sec2 = secundarios[blk2];
+            cir1 = primarios[blk1];
+            cir2 = primarios[blk2];
+            can_swap = True;
+            # Problemas de mismo cirujano
+            if cir1 == sec2 or cir2 == sec1 or sec1 == sec2:
+                can_swap = False;
+            # Si uno de los cirujanos no está disponible para toda la duración de la nueva cirugía
+            if not all(surgeon_schedule[sec2][d1][t1 + b] == -1 for b in range(dur1)):
+                can_swap = False;
+            if not all(surgeon_schedule[sec1][d2][t2 + b] == -1 for b in range(dur2)):
+                can_swap = False;
+            # Si las fichas del cirujano principal no son suficientes para el cambio
+            for d_aux in range(d1, nDays):
+                if (dictCosts[(cir1, sec2, blk1)] > fichas[(cir1, d_aux)] + dictCosts[(cir1, sec1, blk1)] * (d_aux >= d1)):
+                    can_swap = False;
+                    break;
+            for d_aux in range(d2, nDays):
+                if (dictCosts[(cir2, sec1, blk2)] > fichas[(cir2, d_aux)] + dictCosts[(cir2, sec2, blk2)] * (d_aux >= d2)):
+                    can_swap = False;
+                    break;
             if can_swap:
                 valid_pairs.append((p1, p2))
     if not valid_pairs:
-        return (pacientes, primarios, secundarios)
-    p1, p2 = random.choice(valid_pairs)
-    t1 = pacientes[p1]
-    t2 = pacientes[p2]
-    sec1 = secundarios[t1]
-    sec2 = secundarios[t2]
-    dur1 = OT[p1]
-    dur2 = OT[p2]
-    if hablar:
-        print(f"Swapping secondary between p={p1} and p={p2}.")
+        print("[CambiarSecundarios] No hay parejas válidas para el swap.") if hablar else None;
+        return solucion
+    
+    p1, p2 = random.choice(valid_pairs);
+    start1 = pacientes[p1];
+    start2 = pacientes[p2];
+    cir1 = primarios[start1];
+    cir2 = primarios[start2];
+    sec1 = secundarios[start1];
+    sec2 = secundarios[start2];
+    dur1 = OT[p1];
+    dur2 = OT[p2];
+    o1, d1, t1 = decompress(start1, nSlot, nDays);
+    o2, d2, t2 = decompress(start2, nSlot, nDays);
+
+    for d_aux in range(nDays):
+        if d_aux >= d1:
+            fichas[(cir1, d_aux)] += dictCosts[(cir1, sec1, start1)];
+            fichas[(cir1, d_aux)] -= dictCosts[(cir1, sec2, start1)];
+        if d_aux >= d2:
+            fichas[(cir2, d_aux)] += dictCosts[(cir2, sec2, start2)];
+            fichas[(cir2, d_aux)] -= dictCosts[(cir2, sec1, start2)];
+
+    print(f"[CambiarSecundarios] Cambiando cirujanos p={p1} ({sec1}) <-> p={p2} ({sec2}).") if hablar else None;
     for b in range(dur1):
-        secundarios[t1 + b] = sec2
+        secundarios[start1 + b] = sec2;
+        surgeon_schedule[sec1][d1][t1 + b] = -1;
+        surgeon_schedule[sec2][d1][t1 + b] = p1;
     for b in range(dur2):
-        secundarios[t2 + b] = sec1
-    return (pacientes, primarios, secundarios)
+        secundarios[start2 + b] = sec1;
+        surgeon_schedule[sec1][d2][t2 + b] = p2;
+        surgeon_schedule[sec2][d2][t2 + b] = -1;
+    return ((pacientes, primarios, secundarios), surgeon_schedule, or_schedule, fichas)
 
 def MoverPaciente_bloque(sol, OT, nSlot, nDays, AOR=None, fichas=None, dictCosts=None, SP=None, hablar=False):
     """

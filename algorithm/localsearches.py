@@ -1,26 +1,44 @@
 import random
 
-def MejorarAfinidad_primario(sol, OT, AOR, nSlot, nDays, surgeon, second, SP, dictCosts, fichas, hablar=False):
-    pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy()
-    scheduled = [p for p in range(len(pacientes)) if pacientes[p] != -1]
+def compress(o, d, t, nSlot, nDays):
+    return o * nSlot * nDays + d * nSlot + t
+
+def decompress(val, nSlot, nDays):
+    o = val // (nSlot * nDays)
+    temp = val % (nSlot * nDays)
+    d = temp // nSlot
+    t = temp % nSlot
+    return o, d, t
+
+def is_feasible_block(p, o, d, t, AOR):
+    if AOR[p][o][t][d % 5] == 1:
+        return True
+    return False
+
+def MejorarAfinidad_primario(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
+    surgeon_schedule = solucion[1].copy();
+    or_schedule = solucion[2].copy();
+    fichas = solucion[3].copy();
+    pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy();
+    scheduled = [p for p in range(len(pacientes)) if pacientes[p] != -1];
     if not scheduled:
-        return (pacientes, primarios, secundarios), "MejorarAfinidad_primario"
+        print("[MejorarAfinidad_primario] No hay pacientes programados.") if hablar else None;
+        return solucion
 
-    feasible_changes = []
+    feasible_changes = [];
     for p in scheduled:
-        start_blk = pacientes[p]
-        dur = OT[p]
-        main_current = primarios[start_blk]
-        sec_current = secundarios[start_blk]
-        current_cost = dictCosts[(main_current, sec_current, start_blk)]
+        start_blk = pacientes[p];
+        dur = OT[p];
+        main_current = primarios[start_blk];
+        sec_current = secundarios[start_blk];
+        current_cost = dictCosts[(main_current, sec_current, start_blk)];
 
-        best_s = None
-        best_val = current_cost
-        o_ = start_blk // (nSlot * nDays)
-        tmp = start_blk % (nSlot * nDays)
-        d_ = tmp // nSlot
+        '''
+        best_s = None;
+        best_val = current_cost;
+        o_, d_, tmp = decompress(start_blk, nSlot, nDays);
 
-        # Look for a better main surgeon
         for s_cand in surgeon:
             if SP[p][s_cand] == 1 and s_cand != sec_current:
                 cost_cand = dictCosts[(s_cand, sec_current, start_blk)]
@@ -32,28 +50,53 @@ def MejorarAfinidad_primario(sol, OT, AOR, nSlot, nDays, surgeon, second, SP, di
 
         if best_s is not None:
             feasible_changes.append((p, best_s))
+        '''
 
+    for p_sel in scheduled:
+        dur = int(OT[p_sel]);
+        o, d, t = decompress(pacientes[p_sel], nSlot, nDays);
+        s_sel = primarios[pacientes[p_sel]];
+        a_sel = secundarios[pacientes[p_sel]];
+        candidates = [s for s in surgeon if SP[p_sel][s] == 1 and s != s_sel];
+        feasible_changes = [];
+        for s in candidates:
+            # Solo si tiene disponibilidad completa:
+            if not all(surgeon_schedule[s][d][t + b] == -1 for b in range(dur)):
+                continue;
+            # Si no tiene fichas suficientes, no se considera
+            if not all(fichas[(s, d_aux)] - dictCosts[(s, a_sel, pacientes[p_sel])] >= 0 for d_aux in range(d, nDays)):
+                continue;
+            # Si no hay mejora, no se considera
+            mejora = dictCosts[(s, a_sel, pacientes[p_sel])] - dictCosts[s_sel, a_sel, pacientes[p_sel]];
+            if mejora <= 0:
+                continue;
+            feasible_changes.append((p_sel, s, s_sel, mejora));
     if not feasible_changes:
-        return (pacientes, primarios, secundarios), "MejorarAfinidad_primario"
+        print("[MejorarAfinidad_primario] No hay cambios realizables.") if hablar else None;
+        return solucion
 
-    p_sel, s_sel = random.choice(feasible_changes)
+    feasible_changes = feasible_changes.sort(key=lambda x: x[-1], reverse=True);
+    p_sel, s_sel, s_old, mejora = feasible_changes[0];
     start_blk = pacientes[p_sel]
     dur = OT[p_sel]
     if hablar:
         old_s = primarios[start_blk]
         sec_s = secundarios[start_blk]
-        print(f"[MejorarAfinidad_primario] p={p_sel} old_main={old_s} new_main={s_sel} sec={sec_s}")
+        print(f"[MejorarAfinidad_primario] p={p_sel} old_main={old_s} new_main={s_sel} sec={sec_s}, mejora = {mejora}")
 
-    o_ = start_blk // (nSlot * nDays)
-    tmp = start_blk % (nSlot * nDays)
-    d_ = tmp // nSlot
-    cost_new = dictCosts[(s_sel, secundarios[start_blk], start_blk)]
-    fichas[(s_sel, d_)] -= cost_new
+    o, d, t = decompress(start_blk, nSlot, nDays);
+    cost_new = dictCosts[(s_sel, secundarios[start_blk], start_blk)];
+    cost_old = dictCosts[(s_old, secundarios[start_blk], start_blk)];
+    for d_aux in range(d, nDays):
+        fichas[(s_sel, d_aux)] -= cost_new;
+        fichas[(s_old, d_aux)] += cost_old;
 
     for b in range(dur):
-        primarios[start_blk + b] = s_sel
+        primarios[start_blk + b] = s_sel;
+        surgeon_schedule[s_sel][d][t + b] = p_sel;
+        surgeon_schedule[s_old][d][t + b] = -1;
 
-    return (pacientes, primarios, secundarios), "MejorarAfinidad_primario"
+    return ((pacientes, primarios, secundarios), surgeon_schedule, or_schedule, fichas)
 
 def MejorarAfinidad_secundario(sol, OT, AOR, nSlot, nDays, surgeon, second, SP, dictCosts, fichas, hablar=False):
     pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy()
