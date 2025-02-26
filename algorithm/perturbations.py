@@ -189,130 +189,170 @@ def CambiarSecundarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot,
         surgeon_schedule_copy[sec2][d2][t2 + b] = -1;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def MoverPaciente_bloque(sol, OT, nSlot, nDays, AOR=None, fichas=None, dictCosts=None, SP=None, hablar=False):
-    """
-    Attempt to move the patient by +1/-1 block in the same day,
-    checking that new main surgeon cost is feasible in fichas if day changes (though day might not change here),
-    or if the main surgeon changes. If main surgeon remains the same, just do the move.
-    """
-    pac, pri, sec = sol[0].copy(), sol[1].copy(), sol[2].copy()
-    feasible_moves = []
-    scheduled = [i for i, blk in enumerate(pac) if blk != -1]
+def MoverPaciente_bloque(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surgeon_schedule_copy = copy.deepcopy(solucion[1]);
+    or_schedule_copy = copy.deepcopy(solucion[2]);
+    fichas_copy = copy.deepcopy(solucion[3]);
+    pacientes_copy, primarios_copy, secundarios_copy = (copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]));
+    scheduled = [p for p, blk in enumerate(pacientes_copy) if blk != -1];
     if not scheduled:
-        return (pac, pri, sec)
-    for p in scheduled:
-        old_start = pac[p]
-        o, d, t = decompress(old_start, nSlot, nDays)
-        dur = OT[p]
-        main = pri[old_start]
-        for mov in [-1, +1]:
-            new_t = t + mov
-            if new_t < 0 or new_t + dur > nSlot:
-                continue
-            free_and_valid = True
-            for b in range(dur):
-                nb = compress(o, d, new_t + b, nSlot, nDays)
-                if nb in pri or nb in sec:
-                    free_and_valid = False
-                    break
-                if AOR is not None:
-                    if not is_feasible_block(p, o, d, new_t + b, AOR):
-                        free_and_valid = False
-                        break
-            if free_and_valid:
-                feasible_moves.append((p, mov))
-    if not feasible_moves:
-        return (pac, pri, sec)
-    p, mov = random.choice(feasible_moves)
-    old_start = pac[p]
-    o, d, t = decompress(old_start, nSlot, nDays)
-    dur = OT[p]
-    main = pri[old_start]
-    secondary = sec[old_start]
-    for b in range(dur):
-        del pri[old_start + b]
-        del sec[old_start + b]
-    new_t = t + mov
-    new_start = compress(o, d, new_t, nSlot, nDays)
-    if fichas is not None and dictCosts is not None:
-        cost = dictCosts.get((main, secondary, new_start), 0)
-        if fichas[(main, d)] < cost:
-            for b in range(dur):
-                pri[old_start + b] = main
-                sec[old_start + b] = secondary
-            return (pac, pri, sec)
-        fichas[(main, d)] -= cost
-    for b in range(dur):
-        nb = new_start + b
-        pri[nb] = main
-        sec[nb] = secondary
-    pac[p] = new_start
-    if hablar:
-        print(f"Patient {p} from block {t} to {new_t}.")
-    return (pac, pri, sec)
+        if hablar:
+            print("[MoverPaciente_bloque] No hay pacientes programados.");
+        return solucion
 
-def MoverPaciente_dia(sol, OT, nSlot, nDays, AOR=None, fichas=None, dictCosts=None, SP=None, hablar=False):
-    """
-    Similar to MoverPaciente_bloque but tries to shift the entire surgery to day+1 or day-1,
-    checking fichas for the main surgeon if the day changes.
-    """
-    pac, pri, sec = sol[0].copy(), sol[1].copy(), sol[2].copy()
-    scheduled = [i for i, blk in enumerate(pac) if blk != -1]
-    if not scheduled:
-        return (pac, pri, sec)
-    feasible_moves = []
+    feasible_moves = [];
     for p in scheduled:
-        old_start = pac[p]
-        o, d, t = decompress(old_start, nSlot, nDays)
-        dur = OT[p]
-        main = pri[old_start]
-        secondary = sec[old_start]
-        for mov in [-1, +1]:
-            new_d = d + mov
-            if new_d < 0 or new_d >= nDays:
-                continue
-            free_and_valid = True
+        old_start = pacientes_copy[p];
+        o, d, t = decompress(old_start, nSlot, nDays);
+        dur = OT[p];
+        if old_start not in primarios_copy or old_start not in secundarios_copy:
+            continue
+        main = primarios_copy[old_start];
+        secondary = secundarios_copy[old_start];
+        for mov in [-1, 1]:
+            new_t = t + mov;
+            if new_t < 0 or (new_t + dur) > nSlot:
+                continue;
+            block_free = True
             for b in range(dur):
-                nb = compress(o, new_d, t + b, nSlot, nDays)
-                if nb in pri or nb in sec:
-                    free_and_valid = False
-                    break
+                tb = new_t + b
+                if or_schedule_copy[o][d][tb] != -1:
+                    block_free = False;
+                    break;
+                if surgeon_schedule_copy[main][d][tb] != -1 or surgeon_schedule_copy[secondary][d][tb] != -1:
+                    block_free = False;
+                    break;
                 if AOR is not None:
-                    if not is_feasible_block(p, o, new_d, t + b, AOR):
-                        free_and_valid = False
-                        break
-            if free_and_valid:
-                feasible_moves.append((p, mov))
+                    if not is_feasible_block(p, o, d, tb, AOR):
+                        block_free = False;
+                        break;
+            if not block_free:
+                continue;
+            new_start = compress(o, d, new_t, nSlot, nDays);
+            c = dictCosts[(main, secondary, new_start)];
+            if not all(fichas_copy[(main, dd)] + dictCosts[(main, secondary, old_start)]*(mov==1) >= c for dd in range(d, nDays)):
+                continue;
+            feasible_moves.append((p, mov));
     if not feasible_moves:
-        return (pac, pri, sec)
-    p, mov = random.choice(feasible_moves)
-    old_start = pac[p]
-    o, d, t = decompress(old_start, nSlot, nDays)
-    dur = OT[p]
-    main = pri[old_start]
-    secondary = sec[old_start]
+        if hablar:
+            print("[MoverPaciente_bloque] No hay movimientos factibles.");
+        return solucion
+
+    p, mov = random.choice(feasible_moves);
+    old_start = pacientes_copy[p];
+    o, d, t = decompress(old_start, nSlot, nDays);
+    dur = OT[p];
+    main = primarios_copy[old_start];
+    secondary = secundarios_copy[old_start];
+    new_t = t + mov;
+    new_start = compress(o, d, new_t, nSlot, nDays);
+
     for b in range(dur):
-        del pri[old_start + b]
-        del sec[old_start + b]
-    new_d = d + mov
-    new_start = compress(o, new_d, t, nSlot, nDays)
-    if fichas is not None and dictCosts is not None:
-        cost = dictCosts.get((main, secondary, new_start), 0)
-        if fichas[(main, new_d)] < cost:
+        blk = old_start + b;
+        del primarios_copy[blk];
+        del secundarios_copy[blk];
+        or_schedule_copy[o][d][t + b] = -1;
+        surgeon_schedule_copy[main][d][t + b] = -1;
+        surgeon_schedule_copy[secondary][d][t + b] = -1;
+    for dd in range(d, nDays):
+        fichas_copy[(main, dd)] += dictCosts[(main, secondary, old_start)];
+        fichas_copy[(main, dd)] -= dictCosts[(main, secondary, new_start)];
+
+    for b in range(dur):
+        nb = new_start + b;
+        tb = new_t + b;
+        primarios_copy[nb] = main;
+        secundarios_copy[nb] = secondary;
+        or_schedule_copy[o][d][tb] = p;
+        surgeon_schedule_copy[main][d][tb] = p;
+        surgeon_schedule_copy[secondary][d][tb] = p;
+    pacientes_copy[p] = new_start;
+
+    print(f"[MoverPaciente_bloque] Paciente {p} movido del bloque {t} al bloque {new_t}.") if hablar else None;
+    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy,fichas_copy)
+
+def MoverPaciente_dia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surgeon_schedule_copy = copy.deepcopy(solucion[1]);
+    or_schedule_copy = copy.deepcopy(solucion[2]);
+    fichas_copy = copy.deepcopy(solucion[3]);
+    pacientes_copy, primarios_copy, secundarios_copy = (copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]));
+    scheduled = [p for p, blk in enumerate(pacientes_copy) if blk != -1];
+    if len(scheduled) < 2:
+        print("[MoverPaciente_dia] No hay suficientes pacientes para el cambio.") if hablar else None;
+        return solucion
+
+    feasible_moves = [];
+    for p in scheduled:
+        old_start = pacientes_copy[p];
+        o, d, t = decompress(old_start, nSlot, nDays);
+        dur = OT[p];
+        if old_start not in primarios_copy or old_start not in secundarios_copy:
+            continue;
+        main = primarios_copy[old_start];
+        secondary = secundarios_copy[old_start];
+        for mov in [-1, 1]:
+            nd = d + mov;
+            if nd < 0 or nd >= nDays:
+                continue;
+            if t + dur > nSlot:
+                continue;
+            block_free = True;
             for b in range(dur):
-                pri[old_start + b] = main
-                sec[old_start + b] = secondary
-            return (pac, pri, sec)
-        fichas[(main, new_d)] -= cost
-        fichas[(main, d)] += dictCosts.get((main, secondary, old_start), 0)
+                tb = t + b;
+                if or_schedule_copy[o][nd][tb] != -1:
+                    block_free = False;
+                    break
+                if surgeon_schedule_copy[main][nd][tb] != -1 or surgeon_schedule_copy[secondary][nd][tb] != -1:
+                    block_free = False;
+                    break
+                if not is_feasible_block(p, o, nd, tb, AOR):
+                    block_free = False
+                    break
+            if not block_free:
+                continue
+            new_start = compress(o, nd, t, nSlot, nDays);
+            cost = dictCosts[(main, secondary, new_start)];
+            if all(fichas_copy[(main, dd)] + dictCosts[(main, secondary, old_start)]*(mov==1) >= cost for dd in range(nd, nDays)):
+                feasible_moves.append((p, mov));
+
+    if not feasible_moves:
+        print("[MoverPaciente_dia] No hay movimientos factibles.") if hablar else None;
+        return solucion
+
+    p, mov = random.choice(feasible_moves);
+    old_start = pacientes_copy[p];
+    o, d, t = decompress(old_start, nSlot, nDays);
+    dur = OT[p];
+    main = primarios_copy[old_start]; 
+    secondary = secundarios_copy[old_start];
+    new_d = d + mov;
+    new_start = compress(o, new_d, t, nSlot, nDays);
+    c = dictCosts[(main, secondary, new_start)];
+
     for b in range(dur):
-        nb = new_start + b
-        pri[nb] = main
-        sec[nb] = secondary
-    pac[p] = new_start
-    if hablar:
-        print(f"Patient {p} from day {d} to {new_d}.")
-    return (pac, pri, sec)
+        blk = old_start + b;
+        del primarios_copy[blk];
+        del secundarios_copy[blk];
+        or_schedule_copy[o][d][t + b] = -1;
+        surgeon_schedule_copy[main][d][t + b] = -1;
+        surgeon_schedule_copy[secondary][d][t + b] = -1;
+    for dd in range(d, nDays):
+        fichas_copy[(main, dd)] += dictCosts[(main, secondary, old_start)];
+
+    for b in range(dur):
+        nb = new_start + b;
+        tb = t + b;
+        primarios_copy[nb] = main;
+        secundarios_copy[nb] = secondary;
+        or_schedule_copy[o][new_d][tb] = p;
+        surgeon_schedule_copy[main][new_d][tb] = p;
+        surgeon_schedule_copy[secondary][new_d][tb] = p;
+    for dd in range(new_d, nDays):
+        fichas_copy[(main, dd)] -= c;
+    pacientes_copy[p] = new_start;
+
+    print(f"[MoverPaciente_dia] Paciente {p} movido desde el día {d} hasta el día {new_d}.") if hablar else None;
+    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
 def EliminarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
