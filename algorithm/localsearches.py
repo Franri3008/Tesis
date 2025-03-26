@@ -133,76 +133,80 @@ def MejorarAfinidad_secundario(solucion, surgeon, second, OT, SP, AOR, dictCosts
 
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def AdelantarDia(sol, OT, AOR, nSlot, nDays, surgeon, second, SP, dictCosts, fichas, hablar=False):
-    def compressf(o, d, t):
-        return o*nSlot*nDays + d*nSlot + t
-    def decompressf(val):
-        o_ = val // (nSlot*nDays)
-        tmp = val % (nSlot*nDays)
-        d_ = tmp // nSlot
-        t_ = tmp % nSlot
-        return o_, d_, t_
-
-    pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy()
-    scheduled = [p for p in range(len(pacientes)) if pacientes[p] != -1]
+def AdelantarDia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surgeon_schedule_copy = copy.deepcopy(solucion[1]);
+    or_schedule_copy = copy.deepcopy(solucion[2]);
+    fichas_copy = copy.deepcopy(solucion[3]);
+    pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
+    scheduled = [p for p in range(len(pacientes_copy)) if pacientes_copy[p] != -1];
     if not scheduled:
-        return (pacientes, primarios, secundarios), "AdelantarDia"
+        print("[AdelantarDia] No hay pacientes programados.") if hablar else None;
+        return solucion
 
-    feasible_moves = []
+    feasible_moves = [];
     for p in scheduled:
-        start_blk = pacientes[p]
-        o, d, t = decompressf(start_blk)
-        dur = OT[p]
+        start_blk = pacientes_copy[p];
+        s = primarios_copy[start_blk];
+        a = secundarios_copy[start_blk];
+        o, d, t = decompress(start_blk, nSlot, nDays);
+        if d == 0:
+            continue;
+        dur = OT[p];
         for new_d in range(d):
-            can_move = True
-            for b in range(dur):
-                if AOR[p][o][t+b][new_d % 5] != 1:
-                    can_move = False
-                    break
-                new_blk = compressf(o, new_d, t + b)
-                if new_blk in primarios or new_blk in secundarios:
-                    can_move = False
-                    break
-            if can_move:
-                feasible_moves.append((p, o, d, t, new_d))
-
+            for new_t in range(nSlot):
+                for new_o in range(len(or_schedule_copy)):
+                    new_blk = compress(new_o, new_d, new_t, nSlot, nDays);  
+                    if AOR[p][new_o][new_t][new_d % 5] != 1 or new_t + dur >= nSlot or (new_t < nSlot//2 and new_t + dur >= nSlot//2):
+                        continue;
+                    can_move = True;
+                    # Solo si cirujanos tienen disponibilidad completa:
+                    if not all(surgeon_schedule_copy[s][new_d][new_t + b] == -1 for b in range(dur)):
+                        continue;
+                    if not all(surgeon_schedule_copy[a][new_d][new_t + b] == -1 for b in range(dur)):
+                        continue;
+                    # Si no tiene fichas suficientes, no se considera
+                    if not all(fichas_copy[(s, d_aux)] - dictCosts[(s, a, new_blk)] >= 0 for d_aux in range(new_d, nDays)):
+                        continue;
+                    for b in range(dur):
+                        new_blk = compress(new_o, new_d, new_t + b, nSlot, nDays);
+                        if new_blk in primarios_copy or new_blk in secundarios_copy:
+                            can_move = False;
+                            break
+                    if can_move:
+                        feasible_moves.append((p, o, new_o, t, new_t, d, new_d));
     if not feasible_moves:
-        return (pacientes, primarios, secundarios), "AdelantarDia"
+        print("[AdelantarDia] No hay cambios realizables.") if hablar else None;
+        return solucion
 
-    p_sel, o_old, d_old, t_old, d_new = random.choice(feasible_moves)
-    dur = OT[p_sel]
-    start_blk_old = pacientes[p_sel]
+    p_sel, o_old, o_new, t_old, t_new, d_old, d_new = random.choice(feasible_moves);
+    dur = OT[p_sel];
+    start_blk_old = pacientes_copy[p_sel];
+    s = primarios_copy[start_blk_old];
+    a = secundarios_copy[start_blk_old];
     for b in range(dur):
-        ob = start_blk_old + b
-        if ob in primarios: del primarios[ob]
-        if ob in secundarios: del secundarios[ob]
+        ob = start_blk_old + b;
+        if ob in primarios_copy:
+            surgeon_schedule_copy[primarios_copy[ob]][d_old][t_old + b] = -1;
+            del primarios_copy[ob];
+        if ob in secundarios_copy:
+            surgeon_schedule_copy[secundarios_copy[ob]][d_old][t_old + b] = -1;
+            del secundarios_copy[ob];
+        or_schedule_copy[o_old][d_old][t_old + b] = -1;
 
-    new_start = compressf(o_old, d_new, t_old)
-    possible_mains = [s for s in surgeon if SP[p_sel][s] == 1]
-    if not possible_mains:
-        return (pacientes, primarios, secundarios), "AdelantarDia"
-    main_s = None
-    sec_s = None
-    for cand_m in possible_mains:
-        cost_ = dictCosts.get((cand_m, None, new_start), 0)
-        if fichas[(cand_m, d_new)] >= cost_:
-            main_s = cand_m
-            fichas[(cand_m, d_new)] -= cost_
-            break
-    if main_s is None:
-        for b in range(dur):
-            primarios[start_blk_old + b] = primarios.get(start_blk_old, None)
-            secundarios[start_blk_old + b] = secundarios.get(start_blk_old, None)
-        return (pacientes, primarios, secundarios), "AdelantarDia"
-    sec_s = random.choice(second)
+    new_start = compress(o_new, d_new, t_new, nSlot, nDays);
+    for d_aux in range(d_new, nDays):
+        fichas_copy[(s, d_aux)] -= dictCosts[(s, a, new_start)];
     for b in range(dur):
-        primarios[new_start + b] = main_s
-        secundarios[new_start + b] = sec_s
-    pacientes[p_sel] = new_start
+        primarios_copy[new_start + b] = s;
+        secundarios_copy[new_start + b] = a;
+        surgeon_schedule_copy[s][d_new][t_new + b] = p_sel;
+        surgeon_schedule_copy[a][d_new][t_new + b] = p_sel;
+        or_schedule_copy[o_new][d_new][t_new + b] = p_sel;
+    pacientes_copy[p_sel] = new_start;
 
-    #print(f"[AdelantarDia] p={p_sel} from day {d_old} to {d_new}, OR={o_old}, slot={t_old}") if hablar else None
-
-    return (pacientes, primarios, secundarios), "AdelantarDia"
+    if hablar:
+        print(f"[AdelantarDia] Patient {p_sel} moved from day {d_old} to day {d_new}, from OR {o_old} to OR {o_new}, and from slot {t_old} to slot {t_new}.");
+    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
 def MejorOR(sol, OT, AOR, nSlot, nDays, room, surgeon, second, SP, dictCosts, fichas, hablar=False):
     def compressf(o, d, t):

@@ -2,4 +2,5 @@ execDir = "."
 parameterFile = "parameters.txt"
 targetRunner = "target-runner.sh"
 trainInstancesFile = "instances.txt"
-maxExperiments = 300
+maxExperiments = 5000
+deterministic = 1
