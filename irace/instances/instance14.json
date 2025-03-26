@@ -1,0 +1,9 @@
+{
+    "patients": "high",
+    "n_patients": 150,
+    "days": 5,
+    "surgeons": 24,
+    "min_affinity": 1,
+    "fichas": 40,
+    "time_limit": 3600
+}

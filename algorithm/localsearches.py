@@ -25,7 +25,7 @@ def MejorarAfinidad_primario(solucion, surgeon, second, OT, SP, AOR, dictCosts, 
     pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
     scheduled = [p for p in range(len(pacientes_copy)) if pacientes_copy[p] != -1];
     if not scheduled:
-        print("[MejorarAfinidad_primario] No hay pacientes programados.") if hablar else None;
+        #print("[MejorarAfinidad_primario] No hay pacientes programados.") if hablar else None;
         return solucion
     
     feasible_changes = [];
@@ -49,17 +49,17 @@ def MejorarAfinidad_primario(solucion, surgeon, second, OT, SP, AOR, dictCosts, 
                 continue;
             feasible_changes.append((p_sel, s, s_sel, mejora));
     if len(feasible_changes) == 0:
-        print("[MejorarAfinidad_primario] No hay cambios realizables.") if hablar else None;
+        #print("[MejorarAfinidad_primario] No hay cambios realizables.") if hablar else None;
         return solucion
 
     feasible_changes.sort(key=lambda x: x[-1], reverse=True);
     p_sel, s_sel, s_old, mejora = feasible_changes[0];
     start_blk = pacientes_copy[p_sel]
     dur = OT[p_sel]
-    if hablar:
-        old_s = primarios_copy[start_blk]
-        sec_s = secundarios_copy[start_blk]
-        print(f"[MejorarAfinidad_primario] p={p_sel} old_main={old_s} new_main={s_sel} sec={sec_s}, mejora = {mejora}")
+    #if hablar:
+    #    old_s = primarios_copy[start_blk]
+    #    sec_s = secundarios_copy[start_blk]
+        #print(f"[MejorarAfinidad_primario] p={p_sel} old_main={old_s} new_main={s_sel} sec={sec_s}, mejora = {mejora}")
 
     o, d, t = decompress(start_blk, nSlot, nDays);
     cost_new = dictCosts[(s_sel, secundarios_copy[start_blk], start_blk)];
@@ -84,7 +84,7 @@ def MejorarAfinidad_secundario(solucion, surgeon, second, OT, SP, AOR, dictCosts
     pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
     scheduled = [p for p in range(len(pacientes_copy)) if pacientes_copy[p] != -1];
     if not scheduled:
-        print("[MejorarAfinidad_secundario] No hay pacientes programados.") if hablar else None;
+        #print("[MejorarAfinidad_secundario] No hay pacientes programados.") if hablar else None;
         return solucion
     
     feasible_changes = [];
@@ -107,17 +107,17 @@ def MejorarAfinidad_secundario(solucion, surgeon, second, OT, SP, AOR, dictCosts
                 continue;
             feasible_changes.append((p_sel, a, a_sel, mejora));
     if len(feasible_changes) == 0:
-        print("[MejorarAfinidad_secundario] No hay cambios realizables.") if hablar else None;
+        #print("[MejorarAfinidad_secundario] No hay cambios realizables.") if hablar else None;
         return solucion
 
     feasible_changes.sort(key=lambda x: x[-1], reverse=True);
     p_sel, a_sel, a_old, mejora = feasible_changes[0];
     start_blk = pacientes_copy[p_sel];
     dur = OT[p_sel];
-    if hablar:
-        old_a = secundarios_copy[start_blk];
-        main_s = primarios_copy[start_blk];
-        print(f"[MejorarAfinidad_secundario] p={p_sel} old_second={old_a} new_second={a_sel} main={main_s}, mejora = {mejora}");
+    #if hablar:
+    #    old_a = secundarios_copy[start_blk];
+    #    main_s = primarios_copy[start_blk];
+        #print(f"[MejorarAfinidad_secundario] p={p_sel} old_second={old_a} new_second={a_sel} main={main_s}, mejora = {mejora}");
 
     o, d, t = decompress(start_blk, nSlot, nDays);
     main_s = primarios_copy[start_blk];
@@ -200,8 +200,7 @@ def AdelantarDia(sol, OT, AOR, nSlot, nDays, surgeon, second, SP, dictCosts, fic
         secundarios[new_start + b] = sec_s
     pacientes[p_sel] = new_start
 
-    if hablar:
-        print(f"[AdelantarDia] p={p_sel} from day {d_old} to {d_new}, OR={o_old}, slot={t_old}")
+    #print(f"[AdelantarDia] p={p_sel} from day {d_old} to {d_new}, OR={o_old}, slot={t_old}") if hablar else None
 
     return (pacientes, primarios, secundarios), "AdelantarDia"
 
@@ -274,8 +273,7 @@ def MejorOR(sol, OT, AOR, nSlot, nDays, room, surgeon, second, SP, dictCosts, fi
         primarios[new_start + b] = main_s
         secundarios[new_start + b] = sec_s
     pacientes[p_sel] = new_start
-
-    if hablar:
-        print(f"[MejorOR] p={p_sel} from OR={o_old} to OR={o_new}, day={d_old}, slot={t_old}")
+    
+    #print(f"[MejorOR] p={p_sel} from OR={o_old} to OR={o_new}, day={d_old}, slot={t_old}") if hablar else None;
 
     return (pacientes, primarios, secundarios), "MejorOR"

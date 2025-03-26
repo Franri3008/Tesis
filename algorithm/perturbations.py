@@ -30,7 +30,7 @@ def CambiarPrimarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
     pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
     scheduled = [i for i, blk in enumerate(pacientes_copy) if blk != -1]
     if len(scheduled) < 2:
-        print("[CambiarPrimarios] No hay suficientes pacientes para el cambio.") if hablar else None;
+        #print("[CambiarPrimarios] No hay suficientes pacientes para el cambio.") if hablar else None;
         return solucion
 
     valid_pairs = [];
@@ -73,7 +73,7 @@ def CambiarPrimarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
                 valid_pairs.append((p1, p2));
 
     if not valid_pairs:
-        print("[CambiarPrimarios] No hay parejas válidas para el swap.") if hablar else None;
+        #print("[CambiarPrimarios] No hay parejas válidas para el swap.") if hablar else None;
         return solucion
 
     p1, p2 = random.choice(valid_pairs);
@@ -96,7 +96,7 @@ def CambiarPrimarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
             fichas_copy[(cir1, d_aux)] -= dictCosts[(cir1, sec1, start1)];
             fichas_copy[(cir2, d_aux)] += dictCosts[(cir2, sec2, start2)];# - dictCosts[(main2, sec1, start1)];
 
-    print(f"[CambiarPrimarios] Cambiando cirujanos p={p1} ({cir1}) <-> p={p2} ({cir2}).") if hablar else None;
+    #print(f"[CambiarPrimarios] Cambiando cirujanos p={p1} ({cir1}) <-> p={p2} ({cir2}).") if hablar else None;
     for b in range(dur1):
         primarios_copy[start1 + b] = cir2;
         surgeon_schedule_copy[cir1][d1][t1 + b] = -1;
@@ -116,7 +116,7 @@ def CambiarSecundarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot,
     pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
     scheduled = [i for i, blk in enumerate(pacientes_copy) if blk != -1]
     if len(scheduled) < 2:
-        print("[CambiarSecundarios] No hay suficientes pacientes para el cambio.") if hablar else None;
+        #print("[CambiarSecundarios] No hay suficientes pacientes para el cambio.") if hablar else None;
         return solucion
     
     valid_pairs = []
@@ -155,7 +155,7 @@ def CambiarSecundarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot,
             if can_swap:
                 valid_pairs.append((p1, p2))
     if not valid_pairs:
-        print("[CambiarSecundarios] No hay parejas válidas para el swap.") if hablar else None;
+        #print("[CambiarSecundarios] No hay parejas válidas para el swap.") if hablar else None;
         return solucion
     
     p1, p2 = random.choice(valid_pairs);
@@ -178,7 +178,7 @@ def CambiarSecundarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot,
             fichas_copy[(cir2, d_aux)] += dictCosts[(cir2, sec2, start2)];
             fichas_copy[(cir2, d_aux)] -= dictCosts[(cir2, sec1, start2)];
 
-    print(f"[CambiarSecundarios] Cambiando cirujanos p={p1} ({sec1}) <-> p={p2} ({sec2}).") if hablar else None;
+    #print(f"[CambiarSecundarios] Cambiando cirujanos p={p1} ({sec1}) <-> p={p2} ({sec2}).") if hablar else None;
     for b in range(dur1):
         secundarios_copy[start1 + b] = sec2;
         surgeon_schedule_copy[sec1][d1][t1 + b] = -1;
@@ -196,8 +196,7 @@ def MoverPaciente_bloque(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlo
     pacientes_copy, primarios_copy, secundarios_copy = (copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]));
     scheduled = [p for p, blk in enumerate(pacientes_copy) if blk != -1];
     if not scheduled:
-        if hablar:
-            print("[MoverPaciente_bloque] No hay pacientes programados.");
+        #print("[MoverPaciente_bloque] No hay pacientes programados.") if hablar else None;
         return solucion
 
     feasible_moves = [];
@@ -234,8 +233,7 @@ def MoverPaciente_bloque(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlo
                 continue;
             feasible_moves.append((p, mov));
     if not feasible_moves:
-        if hablar:
-            print("[MoverPaciente_bloque] No hay movimientos factibles.");
+        #print("[MoverPaciente_bloque] No hay movimientos factibles.") if hablar else None;
         return solucion
 
     p, mov = random.choice(feasible_moves);
@@ -268,7 +266,7 @@ def MoverPaciente_bloque(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlo
         surgeon_schedule_copy[secondary][d][tb] = p;
     pacientes_copy[p] = new_start;
 
-    print(f"[MoverPaciente_bloque] Paciente {p} movido del bloque {t} al bloque {new_t}.") if hablar else None;
+    #print(f"[MoverPaciente_bloque] Paciente {p} movido del bloque {t} al bloque {new_t}.") if hablar else None;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy,fichas_copy)
 
 def MoverPaciente_dia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
@@ -278,7 +276,7 @@ def MoverPaciente_dia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
     pacientes_copy, primarios_copy, secundarios_copy = (copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]));
     scheduled = [p for p, blk in enumerate(pacientes_copy) if blk != -1];
     if len(scheduled) < 2:
-        print("[MoverPaciente_dia] No hay suficientes pacientes para el cambio.") if hablar else None;
+        #print("[MoverPaciente_dia] No hay suficientes pacientes para el cambio.") if hablar else None;
         return solucion
 
     feasible_moves = [];
@@ -316,7 +314,7 @@ def MoverPaciente_dia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
                 feasible_moves.append((p, mov));
 
     if not feasible_moves:
-        print("[MoverPaciente_dia] No hay movimientos factibles.") if hablar else None;
+        #print("[MoverPaciente_dia] No hay movimientos factibles.") if hablar else None;
         return solucion
 
     p, mov = random.choice(feasible_moves);
@@ -351,7 +349,7 @@ def MoverPaciente_dia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
         fichas_copy[(main, dd)] -= c;
     pacientes_copy[p] = new_start;
 
-    print(f"[MoverPaciente_dia] Paciente {p} movido desde el día {d} hasta el día {new_d}.") if hablar else None;
+    #print(f"[MoverPaciente_dia] Paciente {p} movido desde el día {d} hasta el día {new_d}.") if hablar else None;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
 def EliminarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
@@ -363,7 +361,7 @@ def EliminarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
     pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
     scheduled = [i for i, blk in enumerate(pacientes_copy) if blk != -1];
     if len(scheduled) < 1:
-        print("[EliminarPaciente] No hay pacientes para eliminar.") if hablar else None;
+        #print("[EliminarPaciente] No hay pacientes para eliminar.") if hablar else None;
         return solucion
     
     p = random.choice(scheduled);
@@ -381,7 +379,7 @@ def EliminarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
     for d_aux in range(d, nDays):
         fichas_copy[(main, d_aux)] += dictCosts[(main, sec, start)];
     pacientes_copy[p] = -1;
-    print(f"[EliminarPaciente] Paciente {p} eliminado del bloque {start}.") if hablar else None;
+    #print(f"[EliminarPaciente] Paciente {p} eliminado del bloque {start}.") if hablar else None;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
 def AgregarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
@@ -392,7 +390,7 @@ def AgregarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nD
     pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy();
     unscheduled = [i for i, blk in enumerate(pacientes) if blk == -1];
     if len(unscheduled) < 1:
-        print("[AgregarPaciente] No hay pacientes para agregar.") if hablar else None;
+        #print("[AgregarPaciente] No hay pacientes para agregar.") if hablar else None;
         return solucion
     
     all_start_blocks = []
@@ -447,8 +445,7 @@ def AgregarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nD
                 primarios[blk] = main_s
                 secundarios[blk] = sec_s
             assigned = True
-            if hablar:
-                print(f"Asig p={best_p} prio={best_priority}, OR={o_asign}, dia={d_asign}, slot={t_asign}, dur={dur}, main={main_s}, sec={sec_s}")
+            #print(f"Asig p={best_p} prio={best_priority}, OR={o_asign}, dia={d_asign}, slot={t_asign}, dur={dur}, main={main_s}, sec={sec_s}") if hablar else None
             break
     if not assigned and hablar:
         print("No se pudo asignar ningún paciente con fichas y prioridad.")
@@ -463,7 +460,7 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
     pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
     unscheduled = [i for i, blk in enumerate(pacientes_copy) if blk == -1];
     if len(unscheduled) < 1:
-        print("[AgregarPaciente_1] No hay pacientes para agregar.") if hablar else None;
+        #print("[AgregarPaciente_1] No hay pacientes para agregar.") if hablar else None;
         return solucion
 
     all_start_blocks = [];
@@ -474,7 +471,7 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
                     all_start_blocks.append(compress(o, d, t, nSlot, nDays));
     random.shuffle(all_start_blocks);
     if len(all_start_blocks) == 0:
-        print("[AgregarPaciente_1] No hay bloques disponibles.") if hablar else None;
+        #print("[AgregarPaciente_1] No hay bloques disponibles.") if hablar else None;
         return solucion
     
     assigned = False;
@@ -526,10 +523,10 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
                 for d_aux in range(d, nDays):
                     fichas_copy[(main_s, d_aux)] -= c;
             assigned = True;
-            print(f"[AgregarPaciente_1] p={chosen_p} OR={o}, d={d}, slot={t}, main={main_s}, sec={second_s}") if hablar else None;
+            #print(f"[AgregarPaciente_1] p={chosen_p} OR={o}, d={d}, slot={t}, main={main_s}, sec={second_s}") if hablar else None;
             break
-    if not assigned and hablar:
-        print("[AgregarPaciente_1] No se pudo asignar ningún paciente.");
+    #if not assigned and hablar:
+        #print("[AgregarPaciente_1] No se pudo asignar ningún paciente.");
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
 def AgregarPaciente_2(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
@@ -540,8 +537,7 @@ def AgregarPaciente_2(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
 
     unscheduled = [p for p, blk in enumerate(pacientes_copy) if blk == -1]
     if not unscheduled:
-        if hablar:
-            print("[AgregarPaciente_2] No hay pacientes para agregar.")
+        #print("[AgregarPaciente_2] No hay pacientes para agregar.") if hablar else None
         return solucion
 
     chosen_p = random.choice(unscheduled);
@@ -607,9 +603,9 @@ def AgregarPaciente_2(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
             fichas_copy[(main_s, day_idx)] -= cost;
 
         assigned = True;
-        print(f"[AgregarPaciente_2] p={chosen_p} OR={o}, d={d_}, slot={t_}, main={main_s}, sec={second_s}") if hablar else None;
+        #print(f"[AgregarPaciente_2] p={chosen_p} OR={o}, d={d_}, slot={t_}, main={main_s}, sec={second_s}") if hablar else None;
         break
 
-    if not assigned and hablar:
-        print(f"[AgregarPaciente_2] No se encontró bloque factible para p={chosen_p}.")
+    #if not assigned and hablar:
+        #print(f"[AgregarPaciente_2] No se encontró bloque factible para p={chosen_p}.")
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
