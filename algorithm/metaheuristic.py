@@ -527,7 +527,8 @@ def destruir_OR(solution):
 
 def metaheuristic(inicial, max_iter=50, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
-                  prob_EliminarPaciente=30, prob_AgregarPaciente_1=15, prob_AgregarPaciente_2=15):
+                  prob_EliminarPaciente=30, prob_AgregarPaciente_1=15, prob_AgregarPaciente_2=15,
+                  prob_MejorarAfinidad_primario=50, prob_MejorarAfinidad_secundario=50):
     initial_sol = inicial[0];
     surgeon_schedule = inicial[1];
     or_schedule = inicial[2];
@@ -537,7 +538,7 @@ def metaheuristic(inicial, max_iter=50, destruct=200, temp_inicial=500.0, alpha=
     metadata_pert = {"CambiarPrimarios": [0, 0, prob_CambiarPrimarios], "CambiarSecundarios": [0, 0, prob_CambiarSecundarios],
                     "MoverPaciente_bloque": [0, 0, prob_MoverPaciente_bloque], "MoverPaciente_dia": [0, 0, prob_MoverPaciente_dia],
                     "EliminarPaciente": [0, 0, prob_EliminarPaciente], "AgregarPaciente_1": [0, 0, prob_AgregarPaciente_1], "AgregarPaciente_2": [0, 0, prob_AgregarPaciente_2]};
-    metadata_search = {"MejorarAfinidad_primario": [0, 0, 50], "MejorarAfinidad_secundario": [0, 0, 50],
+    metadata_search = {"MejorarAfinidad_primario": [0, 0, prob_MejorarAfinidad_primario], "MejorarAfinidad_secundario": [0, 0, prob_MejorarAfinidad_secundario],
                        "AdelantarDia": [0, 0, 0], "MejorOR": [0, 0, 0]};
     
     lista_evaluacion = [];
@@ -650,14 +651,15 @@ def metaheuristic(inicial, max_iter=50, destruct=200, temp_inicial=500.0, alpha=
 # ------------------------------------------------------------------------------------
 def main():
     global typePatients, nPatients, nDays, min_affinity, nSurgeons, nFichas, time_limit
-    if len(sys.argv) != 16:
+    if len(sys.argv) != 18:
         print("Usage: metaheuristic.py <instanceID> <seed> <randomSeed> <instanceFile> "
               "<max_iter> <destruct> <temp_inicial> <alpha> <prob_CambiarPrimarios> <prob_CambiarSecundarios>"
               "<prob_MoverPaciente_bloque> <prob_MoverPaciente_dia>" 
-              "<prob_EliminarPaciente> <prob_AgregarPaciente_1> <prob_AgregarPaciente_2>")
+              "<prob_EliminarPaciente> <prob_AgregarPaciente_1> <prob_AgregarPaciente_2>"
+              "<prob_MejorarAfinidad_primario> <prob_MejorarAfinidad_secundario>")
         sys.exit(1)
 
-    # Extract all 15 arguments
+    # Extract all 17 arguments
     instance_id = sys.argv[1]
     seed = sys.argv[2]
     random_seed = sys.argv[3]
@@ -673,6 +675,8 @@ def main():
     prob_EliminarPaciente = float(sys.argv[13])
     prob_AgregarPaciente_1 = float(sys.argv[14])
     prob_AgregarPaciente_2 = float(sys.argv[15])
+    prob_MejorarAfinidad_primario = float(sys.argv[16])
+    prob_MejorarAfinidad_secundario = float(sys.argv[17])
 
 
     with open(instance_file, 'r') as f:
@@ -693,7 +697,8 @@ def main():
     best_solution, stats = metaheuristic(inicial, max_iter=max_iter, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
                                          prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                          prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
-                                         prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2)
+                                         prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
+                                         prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario)
     elapsed = time.time() - start_time
     final_cost = EvalAllORs(best_solution[0], VERSION=version)
     print(final_cost)
