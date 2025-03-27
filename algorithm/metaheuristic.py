@@ -653,10 +653,15 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
     mejor_costo = float("inf");
     mejor = None
     for m in mejores_sols:
-        val = EvalAllORs(m[0], VERSION="C")
+        try:
+            val = EvalAllORs(m[0], VERSION="C")
+        except Exception as error:
+            val = float("inf");
+            with open("./errors.txt", "a") as file:
+                file.write(str(error) + " /// " + str(m));
         if val < mejor_costo:
             mejor_costo = val
-            mejor = m
+            mejor = m;
 
     #mejor = reparar(mejor)
     num_asignados_antes = sum(1 for p in mejor[0] if p != -1);
@@ -703,6 +708,7 @@ def main():
     prob_Pert = float(sys.argv[20])
     prob_Busq = float(sys.argv[21])
 
+    random.seed(seed);
 
     with open(instance_file, 'r') as f:
         data = json.load(f);
