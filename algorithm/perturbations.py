@@ -267,7 +267,7 @@ def MoverPaciente_bloque(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlo
     pacientes_copy[p] = new_start;
 
     #print(f"[MoverPaciente_bloque] Paciente {p} movido del bloque {t} al bloque {new_t}.") if hablar else None;
-    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy,fichas_copy)
+    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
 def MoverPaciente_dia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
@@ -381,75 +381,6 @@ def EliminarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
     pacientes_copy[p] = -1;
     #print(f"[EliminarPaciente] Paciente {p} eliminado del bloque {start}.") if hablar else None;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
-
-def AgregarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
-    sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
-    surgeon_schedule = copy.deepcopy(solucion[1]);
-    or_schedule = copy.deepcopy(solucion[2]);
-    fichas = copy.deepcopy(solucion[3]);
-    pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy();
-    unscheduled = [i for i, blk in enumerate(pacientes) if blk == -1];
-    if len(unscheduled) < 1:
-        #print("[AgregarPaciente] No hay pacientes para agregar.") if hablar else None;
-        return solucion
-    
-    all_start_blocks = []
-    for quir in room:
-        for d_ in range(nDays):
-            for t_ in range(nSlot):
-                all_start_blocks.append(quir * nSlot * nDays + d_ * nSlot + t_)
-    random.shuffle(all_start_blocks)
-    assigned = False
-    for start_block in all_start_blocks:
-        o_asign = start_block // (nSlot * nDays)
-        tmp = start_block % (nSlot * nDays)
-        d_asign = tmp // nSlot
-        t_asign = tmp % nSlot
-        feasible_candidates = []
-        for p in unscheduled:
-            dur = OT[p]
-            if t_asign + dur > nSlot:
-                continue
-            posible = True
-            for b in range(dur):
-                blk = start_block + b
-                if AOR[p][o_asign][t_asign + b][d_asign % 5] != 1:
-                    posible = False
-                    break
-                if blk in primarios or blk in secundarios:
-                    posible = False
-                    break
-            if posible:
-                prioridad = I[(p, d_asign)]
-                feasible_candidates.append((p, prioridad))
-        if feasible_candidates:
-            feasible_candidates.sort(key=lambda x: x[1], reverse=True)
-            best_p, best_priority = feasible_candidates[0]
-            compatible_main_surgeons = [s for s in surgeon if SP[best_p][s] == 1]
-            if not compatible_main_surgeons:
-                continue
-            main_s = None
-            for cand_s in compatible_main_surgeons:
-                cost = dictCosts.get((cand_s, None, start_block), 10)
-                if fichas[(cand_s, d_asign)] >= cost:
-                    main_s = cand_s
-                    fichas[(cand_s, d_asign)] -= cost
-                    break
-            if main_s is None:
-                continue
-            sec_s = random.choice(second)
-            pacientes[best_p] = start_block
-            dur = OT[best_p]
-            for b in range(dur):
-                blk = start_block + b
-                primarios[blk] = main_s
-                secundarios[blk] = sec_s
-            assigned = True
-            #print(f"Asig p={best_p} prio={best_priority}, OR={o_asign}, dia={d_asign}, slot={t_asign}, dur={dur}, main={main_s}, sec={sec_s}") if hablar else None
-            break
-    if not assigned and hablar:
-        print("No se pudo asignar ningún paciente con fichas y prioridad.")
-    return (pacientes, primarios, secundarios)
 
 def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());

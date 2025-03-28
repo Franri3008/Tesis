@@ -22,7 +22,6 @@ from perturbations import (
     MoverPaciente_bloque,
     MoverPaciente_dia,
     EliminarPaciente,
-    AgregarPaciente,
     AgregarPaciente_1,
     AgregarPaciente_2
 )
@@ -614,7 +613,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
             lista_iteracion.append(i);
             if new_cost < best_cost:
                 #best_sol = ((current_sol[0][0].copy(), current_sol[0][1].copy(), current_sol[0][2].copy()), current_sol[1].copy(), current_sol[2].copy(), current_sol[3].copy());
-                best_sol = copy.deepcopy(current_sol);
+                best_solution = copy.deepcopy(current_sol);
                 best_cost = current_cost;
                 d_ = 0;
         else:
@@ -645,11 +644,11 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
             d_ = 0;
         current_time = time.time();
         if current_time - initial_time >= 60.0:
-            mejores_sols.append((copy.deepcopy(current_sol)));
+            mejores_sols.append(copy.deepcopy(current_sol));
             break;
         d_ += 1;
-
-    mejores_sols.append(best_sol);
+    
+    mejores_sols.append(best_solution);
     mejor_costo = float("inf");
     mejor = None
     for m in mejores_sols:
@@ -658,7 +657,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
         except Exception as error:
             val = float("inf");
             with open("./errors.txt", "a") as file:
-                file.write(str(error) + " /// " + str(m));
+                file.write(f"{error} \n/// Iteración: {semilla} - {mejores_sols.index(m)}/{len(mejores_sols)}\n\n");
         if val < mejor_costo:
             mejor_costo = val
             mejor = m;
