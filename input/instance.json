@@ -1,0 +1,13 @@
+{
+    "configurations": [
+        {
+            "patients": "low",
+            "n_patients": 100,
+            "days": 5,
+            "surgeons": 12,
+            "min_affinity": 1,
+            "fichas": 40,
+            "time_limit": 3600
+        }
+    ]
+}

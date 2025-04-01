@@ -5,6 +5,7 @@ import sys
 
 import sys
 import warnings
+warnings.filterwarnings("ignore");
 import json
 import pandas as pd
 import random
@@ -725,7 +726,7 @@ def main():
 
     start_time = time.time()
     solutions = [];
-    for ejec in range(5):
+    for ejec in range(1):
         best_solution, stats = metaheuristic(inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
