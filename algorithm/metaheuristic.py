@@ -39,7 +39,7 @@ from localsearches import (
 # ------------------------------------------------------------------------------------
 # GLOBAL FLAGS OR CONSTANTS
 # ------------------------------------------------------------------------------------
-testing = True
+testing = False
 parametroFichas = 0.11
 entrada = "etapa1"
 version = "C"
@@ -205,7 +205,7 @@ def EvalAllORs(sol, VERSION="C"):
                 leftover_fichas = fichas[s_idx][d_idx]
                 puntaje -= leftover_fichas * multiplicador(d_idx)
 
-    return -1 * puntaje
+    return 1 - (puntaje / bks)
 
 def compress(o, d, t):
     return o * nSlot * nDays + d * nSlot + t
@@ -674,7 +674,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
 # 3. MAIN
 # ------------------------------------------------------------------------------------
 def main():
-    global typePatients, nPatients, nDays, min_affinity, nSurgeons, nFichas, time_limit
+    global typePatients, nPatients, nDays, min_affinity, nSurgeons, nFichas, time_limit, bks
     if len(sys.argv) != 22:
         print("Usage: metaheuristic.py <instanceID> <seed> <randomSeed> <instanceFile> "
               "<max_iter> <destruct> <temp_inicial> <alpha> <prob_CambiarPrimarios> <prob_CambiarSecundarios>"
@@ -720,6 +720,7 @@ def main():
     nSurgeons = int(data["surgeons"]);
     nFichas = int(data["fichas"]);
     time_limit = int(data["time_limit"]);
+    bks = int(data["bks"]);
 
     load_data_and_config();
     inicial = generar_solucion_inicial(VERSION="C");
