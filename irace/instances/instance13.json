@@ -1,7 +1,7 @@
 {
-    "patients": "high",
+    "patients": "all",
     "n_patients": 150,
-    "days": 5,
+    "days": 10,
     "surgeons": 12,
     "min_affinity": 1,
     "fichas": 40,

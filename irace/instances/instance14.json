@@ -1,8 +1,8 @@
 {
-    "patients": "high",
+    "patients": "all",
     "n_patients": 150,
-    "days": 5,
-    "surgeons": 24,
+    "days": 10,
+    "surgeons": 18,
     "min_affinity": 1,
     "fichas": 40,
     "time_limit": 3600

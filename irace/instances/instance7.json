@@ -1,6 +1,6 @@
 {
-    "patients": "low",
-    "n_patients": 200,
+    "patients": "all",
+    "n_patients": 150,
     "days": 5,
     "surgeons": 12,
     "min_affinity": 1,
