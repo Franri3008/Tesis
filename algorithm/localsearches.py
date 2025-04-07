@@ -165,7 +165,7 @@ def AdelantarDia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays
                     if not all(surgeon_schedule_copy[a][new_d][new_t + b] == -1 for b in range(dur)):
                         continue;
                     # Si no tiene fichas suficientes, no se considera
-                    if not all(fichas_copy[(s, d_aux)] - dictCosts[(s, a, new_blk)] >= 0 for d_aux in range(new_d, nDays)):
+                    if not all(fichas_copy[(s, d_aux)] - dictCosts[(s, a, new_blk)] >= 0 for d_aux in range(new_d, d)):
                         continue;
                     for b in range(dur):
                         new_blk = compress(new_o, new_d, new_t + b, nSlot, nDays);
@@ -194,7 +194,7 @@ def AdelantarDia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays
         or_schedule_copy[o_old][d_old][t_old + b] = -1;
 
     new_start = compress(o_new, d_new, t_new, nSlot, nDays);
-    for d_aux in range(d_new, nDays):
+    for d_aux in range(d_new, d_old):
         fichas_copy[(s, d_aux)] -= dictCosts[(s, a, new_start)];
     for b in range(dur):
         primarios_copy[new_start + b] = s;
@@ -233,8 +233,7 @@ def MejorOR(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hab
             if o_new == o_old:
                 continue
             new_start = compress(o_new, d_old, t_old, nSlot, nDays)
-            # Verificar si tiene fichas suficientes para cubrir el costo de la nueva asignación
-            if fichas_copy[(s, d_old)] < dictCosts[(s, a, new_start)]:
+            if fichas_copy[(s, d_old)] + dictCosts[(s, a, start_blk)] < dictCosts[(s, a, new_start)]:
                 continue
             can_move = True
             for b in range(dur):
@@ -269,7 +268,6 @@ def MejorOR(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hab
         or_schedule_copy[o_old][d_old][t_old + b] = -1
 
     new_start = compress(o_new, d_old, t_old, nSlot, nDays)
-    # Recuperar fichas de la asignación antigua y gastar fichas por la nueva asignación para cada día
     old_cost = dictCosts[(s, a, start_blk_old)]
     new_cost = dictCosts[(s, a, new_start)]
     for d_aux in range(d_old, nDays):

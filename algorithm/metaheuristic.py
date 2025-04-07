@@ -150,14 +150,14 @@ def load_data_and_config():
     global level_affinity, OT, AOR, COIN, Ex, I, SP
     global dictCosts
 
-    if testing == False:
-        with open(f"../input/{entrada}.json") as file:
-            data = json.load(file)
-    else:
-        with open("../input/inst_test.json") as file:
-            data = json.load(file)
+    #if testing == False:
+    #    with open(f"../input/{entrada}.json") as file:
+    #        data = json.load(file)
+    #else:
+    #    with open("../input/inst_test.json") as file:
+    #        data = json.load(file)
 
-    config = data["configurations"]
+    #config = data["configurations"]
     dfSurgeon = pd.read_excel("../input/MAIN_SURGEONS.xlsx", sheet_name='surgeon', converters={'n°': int}, index_col=[0])
     dfSecond = pd.read_excel("../input/SECOND_SURGEONS.xlsx", sheet_name='second', converters={'n°': int}, index_col=[0])
     dfRoom = pd.read_excel("../input/ROOMS.xlsx", sheet_name='room', converters={'n°': int}, index_col=[0])
@@ -445,7 +445,7 @@ def destruir_OR(solution):
 def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
                   prob_EliminarPaciente=30, prob_AgregarPaciente_1=15, prob_AgregarPaciente_2=15,
-                  prob_MejorarAfinidad_primario=35, prob_MejorarAfinidad_secundario=35, prob_AdelantarDia=30, prob_MejorOR=50,
+                  prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=30, prob_MejorOR=30,
                   prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1):
     
     random.seed(semilla);
@@ -462,7 +462,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
                     "EliminarPaciente": [0, 0, prob_EliminarPaciente], "AgregarPaciente_1": [0, 0, prob_AgregarPaciente_1], "AgregarPaciente_2": [0, 0, prob_AgregarPaciente_2],
                     "NoOp": [0, 0, 0]};
     metadata_search = {"MejorarAfinidad_primario": [0, 0, prob_MejorarAfinidad_primario], "MejorarAfinidad_secundario": [0, 0, prob_MejorarAfinidad_secundario],
-                       "AdelantarDia": [0, 0, prob_AdelantarDia], "MejorOR": [0, 0, 0], "NoOp": [0, 0, 0]};
+                       "AdelantarDia": [0, 0, prob_AdelantarDia], "MejorOR": [0, 0, prob_MejorOR], "NoOp": [0, 0, 0]};
     
     lista_evaluacion = [];
     lista_iteracion = [];
@@ -531,7 +531,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
             if new_cost < best_cost:
                 best_solution = copy.deepcopy(current_sol);
                 best_cost = current_cost;
-                d_ = 0;
+            d_ = 0;
         else:
             prob_aceptacion = math.exp(delta / T)
             if random.random() < prob_aceptacion:
@@ -598,11 +598,11 @@ def main():
               "<prob_MoverPaciente_bloque> <prob_MoverPaciente_dia>" 
               "<prob_EliminarPaciente> <prob_AgregarPaciente_1> <prob_AgregarPaciente_2>"
               "<prob_MejorarAfinidad_primario> <prob_MejorarAfinidad_secundario>"
-              "<prob_AdelantarDia>"
+              "<prob_AdelantarDia> <prob_MejorORa>"
               "<destruct_type> <prob_Pert> <prob_Busq>")
         sys.exit(1)
 
-    # Extract all 21 arguments
+    # Extract all 22 arguments
     instance_id = sys.argv[1]
     seed = sys.argv[2]
     random_seed = sys.argv[3]
@@ -620,10 +620,11 @@ def main():
     prob_MejorarAfinidad_primario = float(sys.argv[15])
     prob_MejorarAfinidad_secundario = float(sys.argv[16])
     prob_AdelantarDia = float(sys.argv[17])
-    destruct_type = int(sys.argv[18])
-    prob_Pert = float(sys.argv[19])
-    prob_Busq = float(sys.argv[20])
-    GRASP_alpha = float(sys.argv[21]);
+    prob_MejorOR = float(sys.argv[18])
+    destruct_type = int(sys.argv[19])
+    prob_Pert = float(sys.argv[20])
+    prob_Busq = float(sys.argv[21])
+    GRASP_alpha = float(sys.argv[22]);
 
     random.seed(seed);
     max_iter = 75000;
@@ -652,7 +653,7 @@ def main():
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
                                             prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
                                             prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
-                                            prob_AdelantarDia=prob_AdelantarDia,
+                                            prob_AdelantarDia=prob_AdelantarDia, prob_MejorOR=prob_MejorOR,
                                             prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec, GRASP_alpha=GRASP_alpha);
         solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
     elapsed = time.time() - start_time
