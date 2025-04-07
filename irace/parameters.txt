@@ -1,4 +1,3 @@
-max_iter  "" i (500, 10000)
 destruct  "" i (50, 3000)
 temp_ini  "" r (100.0, 2000.0)
 alpha     "" r (0.90, 0.999)
@@ -17,6 +16,8 @@ prob_AdelantarDia "" r (0.00, 1.00)
 destruct_type "" c (0, 1, 2)
 prob_Pert "" r (0.00, 1.00)
 prob_Busq "" r (0.00, 1.00)
+
+GRASP_alpha "" r (0.01, 1.00)
 
 [global]
 digits = 4

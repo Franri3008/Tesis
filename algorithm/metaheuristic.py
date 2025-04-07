@@ -36,6 +36,13 @@ from localsearches import (
     MejorOR
 )
 
+import initial_solutions
+importlib.reload(initial_solutions)
+from initial_solutions import (
+    normal,
+    GRASP
+)
+
 # ------------------------------------------------------------------------------------
 # GLOBAL FLAGS OR CONSTANTS
 # ------------------------------------------------------------------------------------
@@ -49,96 +56,6 @@ warnings.filterwarnings("ignore")
 # ------------------------------------------------------------------------------------
 # FUNCTIONS
 # ------------------------------------------------------------------------------------
-def generar_solucion_inicial(VERSION="A"):
-    all_personnel = set(surgeon).union(second);
-    timeUsedMap = { person: set() for person in all_personnel};
-    boundary = nSlot//2;
-
-    def encontrar_pacientes_cirujanos(p):
-        compatibles = [];
-        for s in surgeon:
-            if SP[p][s] == 1:
-                for a in second:
-                    if a != s and COIN[s][a] == 0:
-                        compatibles.append((p, s, a, OT[p]));
-        return compatibles
-
-    def cirujano_disponible(s, a, o, d, t, duracion):
-        for b in range(int(duracion)):
-            if (d, t + b) in timeUsedMap[s]:
-                return False
-            if (d, t + b) in timeUsedMap[a]:
-                return False
-        return True
-
-    def asignar_paciente(p, s, a, o, d, t, duracion):
-        if asignP[p] == -1:
-            asignP[p] = compress(o, d, t);
-            for b in range(int(duracion)):
-                or_schedule[o][d][t + b] = p;
-                surgeon_schedule[s][d][t + b] = p;
-                surgeon_schedule[a][d][t + b] = p;
-
-                id_block = compress(o, d, t + b);
-                dictS[id_block] = s;
-                dictA[id_block] = a;
-                timeUsedMap[s].add((d, t + b));
-                timeUsedMap[a].add((d, t + b));
-            asignS[s].add((o, d, t, duracion));
-            asignA[a].add((o, d, t, duracion));
-
-    patient_sorted = sorted(patient, key=lambda p: I[(p, 0)], reverse=True);
-
-    asignP = [-1] * len(patient);
-    asignS = {s: set() for s in surgeon};
-    asignA = {a: set() for a in second};
-    dictS  = {};
-    dictA  = {};
-    fichas = {(s, d): nFichas * (d+1) for s in surgeon for d in day};
-
-    surgeon_schedule = {s: [[-1 for t in slot] for d in day] for s in surgeon};
-    or_schedule = {o: [[-1 for t in slot] for d in day] for o in room};
-
-    for p in patient_sorted:
-        assigned = False
-        duracion_p = OT[p]
-        for o in room:
-            for d in day:
-                for t in range(nSlot - duracion_p + 1):
-                    if duracion_p > 1:
-                        if t < boundary and (t + duracion_p) > boundary:
-                            continue
-                    if all(AOR[p][o][t + b][d % 5] == 1 for b in range(duracion_p)):
-                        #if es_bloque_disponible(o, d, t, duracion_p):
-                        if all(or_schedule[o][d][t + b] == -1 for b in range(duracion_p)):
-                            resultados = encontrar_pacientes_cirujanos(p)
-                            for (p_res, s, a, dur) in resultados:
-                                if cirujano_disponible(s, a, o, d, t, dur):
-                                    if (dfdisAffi.iloc[a][s+1] >= level_affinity*(VERSION=="B") and
-                                        dfdisAffiDiario.iloc[d % 5][s+1] >= level_affinity*(VERSION=="B") and
-                                        dfdisAffiBloque.iloc[t // (nSlot // 2)][s+1] >= level_affinity*(VERSION=="B")):
-                                        checks = 0;
-                                        for i in range(num_ext):
-                                            e = int(WhichExtra(o,t//8,d%5,i));
-                                            if Ex[i][(s,e-1)] >= level_affinity*(VERSION=="B"):
-                                                checks += 1;
-                                        if checks >= num_ext*(VERSION=="B"):
-                                            cost = dictCosts[(s, a, compress(o, d, t))]
-                                            if all(fichas[(s, d_aux)] >= cost*(VERSION=="C") for d_aux in range(d, len(day))):
-                                                asignar_paciente(p_res, s, a, o, d, t, dur)
-                                                for d_aux in range(d, len(day)):
-                                                    fichas[(s, d_aux)] -= cost;
-                                                assigned = True
-                                                break
-                                if assigned:
-                                    break
-                if assigned:
-                    break
-            if assigned:
-                break
-    for s in surgeon:
-        fichas_por_dia = [fichas[(s, d)] for d in day];
-    return (asignP, dictS, dictA), surgeon_schedule, or_schedule, fichas
 
 def EvalAllORs(sol, VERSION="C"):
     fichas = [[nFichas * (d+1) for d in range(len(day))] for s in surgeon]
@@ -528,8 +445,8 @@ def destruir_OR(solution):
 def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
                   prob_EliminarPaciente=30, prob_AgregarPaciente_1=15, prob_AgregarPaciente_2=15,
-                  prob_MejorarAfinidad_primario=35, prob_MejorarAfinidad_secundario=35, prob_AdelantarDia=30,
-                  prob_Pert=1, prob_Busq=1, semilla=258):
+                  prob_MejorarAfinidad_primario=35, prob_MejorarAfinidad_secundario=35, prob_AdelantarDia=30, prob_MejorOR=50,
+                  prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1):
     
     random.seed(semilla);
     initial_time = time.time();
@@ -607,24 +524,23 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
         if delta > 0:
             metadata_pert[last_p][1] += 1;
             metadata_search[last_s][1] += 1;
-            #current_sol = ((new_sol[0][0].copy(), new_sol[0][1].copy(), new_sol[0][2].copy()), new_sol[1].copy(), new_sol[2].copy(), new_sol[3].copy());
             current_sol = copy.deepcopy(new_sol);
             current_cost = new_cost;
             lista_evaluacion.append(current_cost);
             lista_iteracion.append(i);
             if new_cost < best_cost:
-                #best_sol = ((current_sol[0][0].copy(), current_sol[0][1].copy(), current_sol[0][2].copy()), current_sol[1].copy(), current_sol[2].copy(), current_sol[3].copy());
                 best_solution = copy.deepcopy(current_sol);
                 best_cost = current_cost;
                 d_ = 0;
         else:
             prob_aceptacion = math.exp(delta / T)
             if random.random() < prob_aceptacion:
-                #current_sol = ((new_sol[0][0].copy(), new_sol[0][1].copy(), new_sol[0][2].copy()), new_sol[1].copy(), new_sol[2].copy(), new_sol[3].copy());
                 current_sol = copy.deepcopy(new_sol);
                 current_cost = new_cost;
                 lista_evaluacion.append(current_cost);
                 lista_iteracion.append(i);
+            else:
+                d_ += 1;
 
         T *= alpha;
         '''
@@ -642,12 +558,13 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
                 current_cost = EvalAllORs(current_sol[0], VERSION="C");
             else:
                 T = temp_inicial;
+                current_sol = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, VERSION="C", hablar=False);
+                current_cost = EvalAllORs(current_sol[0], VERSION="C");
             d_ = 0;
         current_time = time.time();
-        if current_time - initial_time >= 90.0:
+        if current_time - initial_time >= 90:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
-        d_ += 1;
     
     mejores_sols.append(best_solution);
     mejor_costo = float("inf");
@@ -677,7 +594,7 @@ def main():
     global typePatients, nPatients, nDays, min_affinity, nSurgeons, nFichas, time_limit, bks
     if len(sys.argv) != 22:
         print("Usage: metaheuristic.py <instanceID> <seed> <randomSeed> <instanceFile> "
-              "<max_iter> <destruct> <temp_inicial> <alpha> <prob_CambiarPrimarios> <prob_CambiarSecundarios>"
+              "<destruct> <temp_inicial> <alpha> <prob_CambiarPrimarios> <prob_CambiarSecundarios>"
               "<prob_MoverPaciente_bloque> <prob_MoverPaciente_dia>" 
               "<prob_EliminarPaciente> <prob_AgregarPaciente_1> <prob_AgregarPaciente_2>"
               "<prob_MejorarAfinidad_primario> <prob_MejorarAfinidad_secundario>"
@@ -690,25 +607,26 @@ def main():
     seed = sys.argv[2]
     random_seed = sys.argv[3]
     instance_file = sys.argv[4]
-    max_iter = int(sys.argv[5])
-    destruct = int(sys.argv[6])
-    temp_inicial = float(sys.argv[7])
-    alpha = float(sys.argv[8])
-    prob_CambiarPrimarios = float(sys.argv[9])
-    prob_CambiarSecundarios = float(sys.argv[10])
-    prob_MoverPaciente_bloque = float(sys.argv[11])
-    prob_MoverPaciente_dia = float(sys.argv[12])
-    prob_EliminarPaciente = float(sys.argv[13])
-    prob_AgregarPaciente_1 = float(sys.argv[14])
-    prob_AgregarPaciente_2 = float(sys.argv[15])
-    prob_MejorarAfinidad_primario = float(sys.argv[16])
-    prob_MejorarAfinidad_secundario = float(sys.argv[17])
-    prob_AdelantarDia = float(sys.argv[18])
-    destruct_type = int(sys.argv[19])
-    prob_Pert = float(sys.argv[20])
-    prob_Busq = float(sys.argv[21])
+    destruct = int(sys.argv[5])
+    temp_inicial = float(sys.argv[6])
+    alpha = float(sys.argv[7])
+    prob_CambiarPrimarios = float(sys.argv[8])
+    prob_CambiarSecundarios = float(sys.argv[9])
+    prob_MoverPaciente_bloque = float(sys.argv[10])
+    prob_MoverPaciente_dia = float(sys.argv[11])
+    prob_EliminarPaciente = float(sys.argv[12])
+    prob_AgregarPaciente_1 = float(sys.argv[13])
+    prob_AgregarPaciente_2 = float(sys.argv[14])
+    prob_MejorarAfinidad_primario = float(sys.argv[15])
+    prob_MejorarAfinidad_secundario = float(sys.argv[16])
+    prob_AdelantarDia = float(sys.argv[17])
+    destruct_type = int(sys.argv[18])
+    prob_Pert = float(sys.argv[19])
+    prob_Busq = float(sys.argv[20])
+    GRASP_alpha = float(sys.argv[21]);
 
     random.seed(seed);
+    max_iter = 75000;
 
     with open(instance_file, 'r') as f:
         data = json.load(f);
@@ -723,18 +641,19 @@ def main():
     bks = int(data["bks"]);
 
     load_data_and_config();
-    inicial = generar_solucion_inicial(VERSION="C");
+    #inicial = normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, VERSION="C", hablar=False);
+    inicial = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, VERSION="C", hablar=False);
 
     start_time = time.time()
     solutions = [];
-    for ejec in range(5):
+    for ejec in range(1):
         best_solution, stats = metaheuristic(inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
                                             prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
                                             prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
                                             prob_AdelantarDia=prob_AdelantarDia,
-                                            prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec)
+                                            prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec, GRASP_alpha=GRASP_alpha);
         solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
     elapsed = time.time() - start_time
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
@@ -743,3 +662,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+def Elite():
+    pass;
