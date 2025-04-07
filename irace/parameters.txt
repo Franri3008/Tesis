@@ -9,16 +9,21 @@ prob_MoverPaciente_dia "" r (0.00, 1.00)
 prob_EliminarPaciente "" r (0.00, 1.00)
 prob_AgregarPaciente_1 "" r (0.00, 1.00)
 prob_AgregarPaciente_2 "" r (0.00, 1.00)
+prob_DestruirAgregar10 "" r (0.00, 1.00)
+
 prob_MejorarAfinidad_primario "" r (0.00, 1.00)
 prob_MejorarAfinidad_secundario "" r (0.00, 1.00)
 prob_AdelantarDia "" r (0.00, 1.00)
 prob_MejorOR "" r (0.00, 1.00)
+prob_AdelantarTodos "" r (0.00, 1.00)
 
 destruct_type "" c (0, 1, 2)
 prob_Pert "" r (0.00, 1.00)
 prob_Busq "" r (0.00, 1.00)
 
 GRASP_alpha "" r (0.01, 1.00)
+elite_size "" i (3, 10)
+prob_elite "" r (0.01, 1.00)
 
 [global]
 digits = 4

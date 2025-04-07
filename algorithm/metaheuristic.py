@@ -24,7 +24,8 @@ from perturbations import (
     MoverPaciente_dia,
     EliminarPaciente,
     AgregarPaciente_1,
-    AgregarPaciente_2
+    AgregarPaciente_2,
+    DestruirAgregar10
 )
 
 import localsearches
@@ -33,7 +34,8 @@ from localsearches import (
     MejorarAfinidad_primario,
     MejorarAfinidad_secundario,
     AdelantarDia,
-    MejorOR
+    MejorOR,
+    AdelantarTodos
 )
 
 import initial_solutions
@@ -444,9 +446,10 @@ def destruir_OR(solution):
 
 def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
-                  prob_EliminarPaciente=30, prob_AgregarPaciente_1=15, prob_AgregarPaciente_2=15,
-                  prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=30, prob_MejorOR=30,
-                  prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1):
+                  prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
+                  prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29, 
+                  prob_MejorOR=29, prob_AdelantarTodos=2,
+                  prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1, elite_size=5, prob_elite=0.3):
     
     random.seed(semilla);
     initial_time = time.time();
@@ -460,9 +463,9 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
     metadata_pert = {"CambiarPrimarios": [0, 0, prob_CambiarPrimarios], "CambiarSecundarios": [0, 0, prob_CambiarSecundarios],
                     "MoverPaciente_bloque": [0, 0, prob_MoverPaciente_bloque], "MoverPaciente_dia": [0, 0, prob_MoverPaciente_dia],
                     "EliminarPaciente": [0, 0, prob_EliminarPaciente], "AgregarPaciente_1": [0, 0, prob_AgregarPaciente_1], "AgregarPaciente_2": [0, 0, prob_AgregarPaciente_2],
-                    "NoOp": [0, 0, 0]};
+                    "DestruirAgregar10": [0, 0, prob_DestruirAgregar10], "NoOp": [0, 0, 0]};
     metadata_search = {"MejorarAfinidad_primario": [0, 0, prob_MejorarAfinidad_primario], "MejorarAfinidad_secundario": [0, 0, prob_MejorarAfinidad_secundario],
-                       "AdelantarDia": [0, 0, prob_AdelantarDia], "MejorOR": [0, 0, prob_MejorOR], "NoOp": [0, 0, 0]};
+                       "AdelantarDia": [0, 0, prob_AdelantarDia], "MejorOR": [0, 0, prob_MejorOR], "AdelantarTodos": [0, 0, prob_AdelantarTodos], "NoOp": [0, 0, 0]};
     
     lista_evaluacion = [];
     lista_iteracion = [];
@@ -501,6 +504,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
     best_solution = ((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     best_sol = (best_solution[0][0].copy(), best_solution[0][1].copy(), best_solution[0][2].copy());
     best_cost = EvalAllORs(best_sol, VERSION="C");
+    elite_pool = [(best_cost, copy.deepcopy(best_solution))];
     current_sol = ((best_sol[0].copy(), best_sol[1].copy(), best_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     current_cost = best_cost;
     T = temp_inicial;
@@ -526,30 +530,27 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
             metadata_search[last_s][1] += 1;
             current_sol = copy.deepcopy(new_sol);
             current_cost = new_cost;
-            lista_evaluacion.append(current_cost);
-            lista_iteracion.append(i);
+
             if new_cost < best_cost:
+                current_sol = copy.deepcopy(new_sol);
+                current_cost = new_cost;
+
                 best_solution = copy.deepcopy(current_sol);
                 best_cost = current_cost;
+            
+                elite_pool.append((best_cost, copy.deepcopy(best_solution)));
+                elite_pool.sort(key=lambda x: x[0], reverse=False);
+                elite_pool = elite_pool[:elite_size];
             d_ = 0;
         else:
             prob_aceptacion = math.exp(delta / T)
             if random.random() < prob_aceptacion:
                 current_sol = copy.deepcopy(new_sol);
                 current_cost = new_cost;
-                lista_evaluacion.append(current_cost);
-                lista_iteracion.append(i);
             else:
                 d_ += 1;
 
         T *= alpha;
-        '''
-        if r % 50 == 0:
-            current_sol = reparar(current_sol)
-            current_cost = EvalAllORs(current_sol, VERSION=version)
-            timeUsedMap = build_timeUsedMap(current_sol, nSlot, nDays)
-        '''
-        r += 1
         if d_ >= destruct and destruct_type != 0:
             #best_sol = reparar(best_sol)
             mejores_sols.append((copy.deepcopy(current_sol)));
@@ -557,9 +558,14 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
                 current_sol = destruir_OR(current_sol);
                 current_cost = EvalAllORs(current_sol[0], VERSION="C");
             else:
+                if random.random() < prob_elite:
+                    _, chosen_elite_sol = random.choice(elite_pool);
+                    current_sol = copy.deepcopy(chosen_elite_sol);
+                    current_cost = EvalAllORs(current_sol[0], VERSION=version);
+                else:
+                    current_sol = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, VERSION="C", hablar=False);
+                    current_cost = EvalAllORs(current_sol[0], VERSION=version);
                 T = temp_inicial;
-                current_sol = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, VERSION="C", hablar=False);
-                current_cost = EvalAllORs(current_sol[0], VERSION="C");
             d_ = 0;
         current_time = time.time();
         if current_time - initial_time >= 90:
@@ -567,6 +573,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
             break;
     
     mejores_sols.append(best_solution);
+    '''
     mejor_costo = float("inf");
     mejor = None
     for m in mejores_sols:
@@ -579,12 +586,13 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
         if val < mejor_costo:
             mejor_costo = val
             mejor = m;
-
+    '''
+    mejor_costo, mejor = elite_pool[0];
     #mejor = reparar(mejor)
-    num_asignados_antes = sum(1 for p in mejor[0] if p != -1);
+    #num_asignados_antes = sum(1 for p in mejor[0] if p != -1);
     #mejor = final_add_patients(mejor, VERSION=version);
     #mejor = reparar(mejor)
-    num_asignados_despues = sum(1 for p in mejor[0] if p != -1);
+    #num_asignados_despues = sum(1 for p in mejor[0] if p != -1);
     return mejor, (lista_evaluacion, lista_iteracion, metadata_pert, metadata_search)
 
 # ------------------------------------------------------------------------------------
@@ -592,17 +600,17 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
 # ------------------------------------------------------------------------------------
 def main():
     global typePatients, nPatients, nDays, min_affinity, nSurgeons, nFichas, time_limit, bks
-    if len(sys.argv) != 22:
+    if len(sys.argv) != 27:
         print("Usage: metaheuristic.py <instanceID> <seed> <randomSeed> <instanceFile> "
               "<destruct> <temp_inicial> <alpha> <prob_CambiarPrimarios> <prob_CambiarSecundarios>"
               "<prob_MoverPaciente_bloque> <prob_MoverPaciente_dia>" 
-              "<prob_EliminarPaciente> <prob_AgregarPaciente_1> <prob_AgregarPaciente_2>"
+              "<prob_EliminarPaciente> <prob_AgregarPaciente_1> <prob_AgregarPaciente_2> <prob_DestruirAgregar10>"
               "<prob_MejorarAfinidad_primario> <prob_MejorarAfinidad_secundario>"
-              "<prob_AdelantarDia> <prob_MejorORa>"
-              "<destruct_type> <prob_Pert> <prob_Busq>")
+              "<prob_AdelantarDia> <prob_MejorOR> <prob_AdelantarTodos>"
+              "<destruct_type> <prob_Pert> <prob_Busq> <GRASP_alpha> <elite_size> <prob_elite>")
         sys.exit(1)
 
-    # Extract all 22 arguments
+    # Extract all 26 arguments
     instance_id = sys.argv[1]
     seed = sys.argv[2]
     random_seed = sys.argv[3]
@@ -617,14 +625,18 @@ def main():
     prob_EliminarPaciente = float(sys.argv[12])
     prob_AgregarPaciente_1 = float(sys.argv[13])
     prob_AgregarPaciente_2 = float(sys.argv[14])
-    prob_MejorarAfinidad_primario = float(sys.argv[15])
-    prob_MejorarAfinidad_secundario = float(sys.argv[16])
-    prob_AdelantarDia = float(sys.argv[17])
-    prob_MejorOR = float(sys.argv[18])
-    destruct_type = int(sys.argv[19])
-    prob_Pert = float(sys.argv[20])
-    prob_Busq = float(sys.argv[21])
-    GRASP_alpha = float(sys.argv[22]);
+    prob_DestruirAgregar10 = float(sys.argv[15])
+    prob_MejorarAfinidad_primario = float(sys.argv[16])
+    prob_MejorarAfinidad_secundario = float(sys.argv[17])
+    prob_AdelantarDia = float(sys.argv[18])
+    prob_MejorOR = float(sys.argv[19])
+    prob_AdelantarTodos = float(sys.argv[20])
+    destruct_type = int(sys.argv[21])
+    prob_Pert = float(sys.argv[22])
+    prob_Busq = float(sys.argv[23])
+    GRASP_alpha = float(sys.argv[24])
+    elite_size = float(sys.argv[25])
+    prob_elite = float(sys.argv[26])
 
     random.seed(seed);
     max_iter = 75000;
@@ -652,9 +664,12 @@ def main():
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
                                             prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
+                                            prob_DestruirAgregar10=prob_DestruirAgregar10,
                                             prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
                                             prob_AdelantarDia=prob_AdelantarDia, prob_MejorOR=prob_MejorOR,
-                                            prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec, GRASP_alpha=GRASP_alpha);
+                                            prob_AdelantarTodos=prob_AdelantarTodos,
+                                            prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec, GRASP_alpha=GRASP_alpha, 
+                                            elite_size=elite_size, prob_elite=prob_elite);
         solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
     elapsed = time.time() - start_time
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
@@ -663,6 +678,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-def Elite():
-    pass;

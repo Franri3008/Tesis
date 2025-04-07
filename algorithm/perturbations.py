@@ -1,5 +1,6 @@
 import random
 import copy
+import math
 
 def compress(o, d, t, nSlot, nDays):
     return o * nSlot * nDays + d * nSlot + t
@@ -15,11 +16,6 @@ def is_feasible_block(p, o, d, t, AOR):
     if AOR[p][o][t][d % 5] == 1:
         return True
     return False
-
-
-##################################
-######### Perturbaciones #########
-##################################
 
 def CambiarPrimarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
@@ -93,7 +89,7 @@ def CambiarPrimarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
             fichas_copy[(cir1, d_aux)] += dictCosts[(cir1, sec1, start1)];# - dictCosts[(main1, sec2, start2)];
             fichas_copy[(cir2, d_aux)] -= dictCosts[(cir2, sec1, start1)];
         if d_aux >= d2:
-            fichas_copy[(cir1, d_aux)] -= dictCosts[(cir1, sec1, start1)];
+            fichas_copy[(cir1, d_aux)] -= dictCosts[(cir1, sec2, start2)];
             fichas_copy[(cir2, d_aux)] += dictCosts[(cir2, sec2, start2)];# - dictCosts[(main2, sec1, start1)];
 
     #print(f"[CambiarPrimarios] Cambiando cirujanos p={p1} ({cir1}) <-> p={p2} ({cir2}).") if hablar else None;
@@ -387,11 +383,10 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
     fichas_copy = copy.deepcopy(solucion[3]);
-    #pacientes, primarios, secundarios = sol[0].copy(), sol[1].copy(), sol[2].copy();
     pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
     unscheduled = [i for i, blk in enumerate(pacientes_copy) if blk == -1];
     if len(unscheduled) < 1:
-        #print("[AgregarPaciente_1] No hay pacientes para agregar.") if hablar else None;
+        print("[AgregarPaciente_1] No hay pacientes para agregar.") if hablar else None;
         return solucion
 
     all_start_blocks = [];
@@ -402,7 +397,7 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
                     all_start_blocks.append(compress(o, d, t, nSlot, nDays));
     random.shuffle(all_start_blocks);
     if len(all_start_blocks) == 0:
-        #print("[AgregarPaciente_1] No hay bloques disponibles.") if hablar else None;
+        print("[AgregarPaciente_1] No hay bloques disponibles.") if hablar else None;
         return solucion
     
     assigned = False;
@@ -431,6 +426,8 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
             if len(comp_mains) == 0:
                 continue
             main_s = None;
+            chosen_second_s = None # Variable to store the chosen secondary
+            chosen_cost = None     # Variable to store the chosen cost
             for cm in comp_mains:
                 comp_second = [a for a in second if a != cm and all(surgeon_schedule_copy[a][d][t + b] == -1 for b in range(dur))];
                 if len(comp_second) == 0:
@@ -439,6 +436,8 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
                 c = dictCosts[(cm, second_s, start_block)];
                 if all(fichas_copy[(cm, d_aux)] >= c for d_aux in range(d, nDays)):
                     main_s = cm;
+                    chosen_second = second_s;
+                    chosen_cost = c;
                     break
             if main_s is None:
                 continue
@@ -451,13 +450,13 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
                 secundarios_copy[blk] = second_s;
                 surgeon_schedule_copy[second_s][d][t + b] = chosen_p;
                 or_schedule_copy[o][d][t + b] = chosen_p;
-                for d_aux in range(d, nDays):
-                    fichas_copy[(main_s, d_aux)] -= c;
+            for d_aux in range(d, nDays):
+                fichas_copy[(main_s, d_aux)] -= c;
             assigned = True;
-            #print(f"[AgregarPaciente_1] p={chosen_p} OR={o}, d={d}, slot={t}, main={main_s}, sec={second_s}") if hablar else None;
+            print(f"[AgregarPaciente_1] p={chosen_p} OR={o}, d={d}, slot={t}, main={main_s}, sec={second_s}") if hablar else None;
             break
-    #if not assigned and hablar:
-        #print("[AgregarPaciente_1] No se pudo asignar ningún paciente.");
+    if not assigned and hablar:
+        print("[AgregarPaciente_1] No se pudo asignar ningún paciente.");
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
 def AgregarPaciente_2(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
@@ -539,4 +538,198 @@ def AgregarPaciente_2(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
 
     #if not assigned and hablar:
         #print(f"[AgregarPaciente_2] No se encontró bloque factible para p={chosen_p}.")
+    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
+
+def DestruirAgregar10(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surgeon_schedule_copy = copy.deepcopy(solucion[1]);
+    or_schedule_copy = copy.deepcopy(solucion[2]);
+    fichas_copy = copy.deepcopy(solucion[3]);
+    pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
+
+    num_patients = len(pacientes_copy);
+    num_ors = len(or_schedule_copy);
+
+    scheduled_patients = [p for p in range(num_patients) if pacientes_copy[p] != -1];
+    removed_patient_ids = set();
+    num_removed = 0;
+
+    if scheduled_patients:
+        num_to_remove = min(10, len(scheduled_patients))
+        patients_to_remove = random.sample(scheduled_patients, num_to_remove)
+        removed_patient_ids = set(patients_to_remove)
+
+        if hablar:
+            print(f"[DestructAndAdd] Removing patients: {patients_to_remove}")
+
+        for p_remove in patients_to_remove:
+            start_blk_old = pacientes_copy[p_remove]
+            if start_blk_old == -1: # Should not happen, but safety check
+                continue
+
+            try:
+                o_old, d_old, t_old = decompress(start_blk_old, nSlot, nDays)
+            except Exception as e:
+                 if hablar:
+                     print(f"[DestructAndAdd] Error decompressing block {start_blk_old} for patient {p_remove} during removal: {e}. Skipping removal.")
+                 removed_patient_ids.discard(p_remove) # Don't count as removed if error
+                 continue
+
+            if start_blk_old not in primarios_copy or start_blk_old not in secundarios_copy:
+                 if hablar:
+                     print(f"[DestructAndAdd] Inconsistent state for patient {p_remove} at block {start_blk_old} during removal. Skipping removal.")
+                 removed_patient_ids.discard(p_remove)
+                 continue
+
+            s = primarios_copy[start_blk_old]
+            a = secundarios_copy[start_blk_old]
+            dur = OT[p_remove]
+
+            cost_key = (s, a, start_blk_old)
+            if cost_key not in dictCosts:
+                 if hablar:
+                     print(f"[DestructAndAdd] Cost key {cost_key} not found for patient {p_remove} during removal. Cannot refund fichas. Skipping removal.")
+                 removed_patient_ids.discard(p_remove)
+                 continue
+            cost_old = dictCosts[cost_key]
+
+            # Remove assignments
+            for b in range(dur):
+                ob_old = start_blk_old + b
+                primarios_copy.pop(ob_old, None)
+                secundarios_copy.pop(ob_old, None)
+
+                if 0 <= o_old < num_ors and 0 <= d_old < nDays and 0 <= t_old + b < nSlot:
+                    or_schedule_copy[o_old][d_old][t_old + b] = -1
+                if 0 <= s < len(surgeon_schedule_copy) and 0 <= d_old < nDays and 0 <= t_old + b < nSlot:
+                     if surgeon_schedule_copy[s][d_old][t_old + b] == p_remove:
+                         surgeon_schedule_copy[s][d_old][t_old + b] = -1
+                if 0 <= a < len(surgeon_schedule_copy) and 0 <= d_old < nDays and 0 <= t_old + b < nSlot:
+                     if surgeon_schedule_copy[a][d_old][t_old + b] == p_remove:
+                         surgeon_schedule_copy[a][d_old][t_old + b] = -1
+
+            # Refund fichas
+            for d_aux in range(d_old, nDays):
+                fichas_key_refund = (s, d_aux)
+                if fichas_key_refund in fichas_copy:
+                    fichas_copy[fichas_key_refund] += cost_old
+                elif hablar:
+                    print(f"[DestructAndAdd] Warning: Fichas key {fichas_key_refund} not found during refund for patient {p_remove}.")
+
+            pacientes_copy[p_remove] = -1
+            num_removed += 1
+
+        if hablar:
+             print(f"[DestructAndAdd] Successfully removed {num_removed} patients.")
+
+    # --- Construction Phase ---
+    current_unscheduled = [p for p, blk in enumerate(pacientes_copy) if blk == -1]
+    candidates_to_add = [p for p in current_unscheduled if p not in removed_patient_ids]
+    num_added = 0
+
+    if candidates_to_add:
+        num_to_add = min(10, len(candidates_to_add))
+        patients_to_add = random.sample(candidates_to_add, num_to_add)
+
+        if hablar:
+            print(f"[DestructAndAdd] Attempting to add patients: {patients_to_add}")
+
+        for p_add in patients_to_add:
+            dur = OT[p_add]
+            assignment_found_for_p = False
+            main_s = None
+            chosen_second_s = None
+            chosen_cost = None
+            chosen_start_block = -1
+            chosen_o = -1
+            chosen_d = -1
+            chosen_t = -1
+
+            potential_starts = []
+            for o in range(num_ors):
+                for d in range(nDays):
+                    for t in range(nSlot):
+                        # Basic time and OR availability check
+                        if t + dur <= nSlot and or_schedule_copy[o][d][t] == -1:
+                             # Check full duration OR availability
+                             if all(or_schedule_copy[o][d][t + b] == -1 for b in range(dur)):
+                                 potential_starts.append(compress(o, d, t, nSlot, nDays))
+            random.shuffle(potential_starts)
+
+            for start_block in potential_starts:
+                o, d, t = decompress(start_block, nSlot, nDays)
+
+                # Check constraints specific to this block
+                if t < nSlot // 2 and (t + dur) > nSlot // 2:
+                    continue
+                if AOR[p_add][o][t][d % 5] != 1:
+                    continue
+
+                # Find compatible & available surgeons
+                comp_mains = [s for s in surgeon if SP[p_add][s] == 1 and all(surgeon_schedule_copy[s][d][t + b] == -1 for b in range(dur))]
+                if not comp_mains:
+                    continue
+
+                # Try find a primary/secondary combo that can afford it
+                found_affordable_combo = False
+                for cm in comp_mains:
+                    comp_second = [a for a in second if a != cm and all(surgeon_schedule_copy[a][d][t + b] == -1 for b in range(dur))]
+                    if not comp_second:
+                        continue
+                    cand_second = random.choice(comp_second)
+
+                    cost_key = (cm, cand_second, start_block)
+                    if cost_key not in dictCosts:
+                        continue
+                    cost_new = dictCosts[cost_key]
+
+                    can_afford = True
+                    for d_check in range(d, nDays):
+                        fichas_key = (cm, d_check)
+                        if fichas_copy.get(fichas_key, -math.inf) < cost_new:
+                            can_afford = False
+                            break
+                    if not can_afford:
+                        continue
+
+                    # Found a valid combo for this block
+                    main_s = cm
+                    chosen_second_s = cand_second
+                    chosen_cost = cost_new
+                    chosen_start_block = start_block
+                    chosen_o = o
+                    chosen_d = d
+                    chosen_t = t
+                    found_affordable_combo = True
+                    break # Break cm loop
+
+                if found_affordable_combo:
+                    assignment_found_for_p = True
+                    break # Break start_block loop
+
+            # If a valid assignment was found for p_add, perform it
+            if assignment_found_for_p:
+                pacientes_copy[p_add] = chosen_start_block
+                for b in range(dur):
+                    blk_new = chosen_start_block + b
+                    primarios_copy[blk_new] = main_s
+                    secundarios_copy[blk_new] = chosen_second_s
+
+                    surgeon_schedule_copy[main_s][chosen_d][chosen_t + b] = p_add
+                    surgeon_schedule_copy[chosen_second_s][chosen_d][chosen_t + b] = p_add
+                    or_schedule_copy[chosen_o][chosen_d][chosen_t + b] = p_add
+
+                # Deduct fichas
+                for d_aux in range(chosen_d, nDays):
+                    fichas_key_deduct = (main_s, d_aux)
+                    if fichas_key_deduct in fichas_copy:
+                        fichas_copy[fichas_key_deduct] -= chosen_cost
+                    elif hablar:
+                         print(f"[DestructAndAdd] Warning: Fichas key {fichas_key_deduct} not found during deduction for patient {p_add}.")
+                num_added += 1
+                if hablar:
+                    print(f"[DestructAndAdd] Added patient {p_add} to ({chosen_o},{chosen_d},{chosen_t}) with S={main_s}, A={chosen_second_s}")
+
+        if hablar:
+            print(f"[DestructAndAdd] Successfully added {num_added} patients.")
+
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
