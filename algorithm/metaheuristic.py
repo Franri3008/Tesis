@@ -635,7 +635,7 @@ def main():
     prob_Pert = float(sys.argv[22])
     prob_Busq = float(sys.argv[23])
     GRASP_alpha = float(sys.argv[24])
-    elite_size = float(sys.argv[25])
+    elite_size = int(sys.argv[25])
     prob_elite = float(sys.argv[26])
 
     random.seed(seed);
