@@ -603,17 +603,19 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
 # ------------------------------------------------------------------------------------
 def main():
     global typePatients, nPatients, nDays, min_affinity, nSurgeons, nFichas, time_limit, bks
-    if len(sys.argv) != 27:
+    if len(sys.argv) != 32:
         print("Usage: metaheuristic.py <instanceID> <seed> <randomSeed> <instanceFile> "
               "<destruct> <temp_inicial> <alpha> <prob_CambiarPrimarios> <prob_CambiarSecundarios>"
               "<prob_MoverPaciente_bloque> <prob_MoverPaciente_dia>" 
               "<prob_EliminarPaciente> <prob_AgregarPaciente_1> <prob_AgregarPaciente_2> <prob_DestruirAgregar10>"
               "<prob_MejorarAfinidad_primario> <prob_MejorarAfinidad_secundario>"
               "<prob_AdelantarDia> <prob_MejorOR> <prob_AdelantarTodos>"
-              "<destruct_type> <prob_Pert> <prob_Busq> <GRASP_alpha> <elite_size> <prob_elite>")
+              "<prob_CambiarPaciente1> <prob_CambiarPaciente2> <prob_CambiarPaciente3>"
+              "<destruct_type> <prob_Busq> <GRASP_alpha> <elite_size> <prob_elite>" \
+              "<prob_GRASP1> <prob_GRASP2> <prob_GRASP3>")
         sys.exit(1)
 
-    # Extract all 26 arguments
+    # Extract all 31 arguments
     instance_id = sys.argv[1]
     seed = sys.argv[2]
     random_seed = sys.argv[3]
@@ -672,7 +674,7 @@ def main():
 
     start_time = time.time()
     solutions = [];
-    for ejec in range(10):
+    for ejec in range(5):
         best_solution, stats = metaheuristic(inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
@@ -688,7 +690,7 @@ def main():
     elapsed = time.time() - start_time
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
     #print(final_cost)
-    print(np.mean(solutions), elapsed)
+    print(np.mean(solutions))
 
 if __name__ == "__main__":
     main()
