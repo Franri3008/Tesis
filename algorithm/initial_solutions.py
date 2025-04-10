@@ -11,7 +11,7 @@ def decompress(val, nSlot, nDays):
     t = temp % nSlot
     return o, d, t
 
-def normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=0.1, VERSION="C", hablar=False):
+def normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, VERSION="C", hablar=False):
     all_personnel = set(surgeon).union(second);
     timeUsedMap = { person: set() for person in all_personnel};
     boundary = nSlot//2;

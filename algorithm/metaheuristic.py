@@ -420,7 +420,7 @@ def load_data_and_config():
 # 2. METAHEURISTIC
 # ------------------------------------------------------------------------------------
 
-def destruir_OR(solution):
+def destruir_OR(solution, OT, dictCosts, nSlot, nDays, room, day):
     surgeon_schedule = copy.deepcopy(solution[1]);
     or_schedule = copy.deepcopy(solution[2]);
     fichas = copy.deepcopy(solution[3]);
@@ -428,31 +428,57 @@ def destruir_OR(solution):
 
     chosen_or = random.choice(room);
     chosen_day = random.choice(day);
-    chosen_time = random.choice([0, nSlot//2]);
-    for t_aux in range(chosen_time, chosen_time + nSlot//2):
-        p = or_schedule[chosen_or][chosen_day][t_aux];
-        if p != -1:
-            dur = OT[p];
-            block = pacientes[p];
-            main_s = primarios[pacientes[p]];
-            second_s = secundarios[pacientes[p]];
-            for b in range(dur):
-                or_schedule[chosen_or][chosen_day][t_aux + b] = -1;
-                del primarios[block + b];
-                del secundarios[block + b];
-                surgeon_schedule[main_s][chosen_day][t_aux + b] = -1;
-                surgeon_schedule[second_s][chosen_day][t_aux + b] = -1;
-            for d_aux in range(chosen_day, nDays):
-                fichas[(main_s, d_aux)] += dictCosts[(main_s, second_s, pacientes[p])];
-            pacientes[p] = -1;
+    possible_times = [0, nSlot//2];
+    possible_times = [t for t in possible_times if t < nSlot];
+    chosen_time = random.choice(possible_times);
+    patients_to_remove = set();
+    start_slot = chosen_time;
+    end_slot = min(chosen_time + nSlot // 2, nSlot);
+    for t_aux in range(start_slot, end_slot):
+        if t_aux < len(or_schedule[chosen_or][chosen_day]):
+            p = or_schedule[chosen_or][chosen_day][t_aux];
+            if p != -1:
+                patients_to_remove.add(p);
+
+    for p in patients_to_remove:
+        if p not in pacientes or pacientes[p] == -1:
+            continue
+        start_block = pacientes[p];
+        o_real, d_real, t_real = decompress(start_block);
+        dur = OT[p];
+        main_s = primarios[start_block];
+        second_s = secundarios[start_block];
+        cost_key = (main_s, second_s, start_block);
+        cost = dictCosts[cost_key];
+
+        for b in range(dur):
+            current_block = start_block + b;
+            current_t = t_real + b;
+            if 0 <= o_real < len(or_schedule) and 0 <= d_real < len(or_schedule[o_real]) and 0 <= current_t < len(or_schedule[o_real][d_real]):
+                 or_schedule[o_real][d_real][current_t] = -1
+            if 0 <= main_s < len(surgeon_schedule) and 0 <= d_real < len(surgeon_schedule[main_s]) and 0 <= current_t < len(surgeon_schedule[main_s][d_real]):
+                 if surgeon_schedule[main_s][d_real][current_t] == p:
+                     surgeon_schedule[main_s][d_real][current_t] = -1
+            if 0 <= second_s < len(surgeon_schedule) and 0 <= d_real < len(surgeon_schedule[second_s]) and 0 <= current_t < len(surgeon_schedule[second_s][d_real]):
+                 if surgeon_schedule[second_s][d_real][current_t] == p:
+                     surgeon_schedule[second_s][d_real][current_t] = -1
+
+            primarios.pop(current_block, None)
+            secundarios.pop(current_block, None)
+        for d_aux in range(d_real, nDays):
+            fichas_key = (main_s, d_aux)
+            if fichas_key in fichas:
+                 fichas[fichas_key] += cost;
+        pacientes[p] = -1
     return ((pacientes, primarios, secundarios), surgeon_schedule, or_schedule, fichas)
 
-def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_inicial=500.0, alpha=0.99,
+def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
                   prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
                   prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29, 
                   prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, prob_CambiarPaciente3=10,
-                  prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1, elite_size=5, prob_elite=0.3, prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4):
+                  prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
+                  prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1, elite_size=5, prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4):
     
     random.seed(semilla);
     initial_time = time.time();
@@ -557,21 +583,23 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
 
         T *= alpha;
         if d_ >= destruct and destruct_type != 0:
-            #best_sol = reparar(best_sol)
             mejores_sols.append((copy.deepcopy(current_sol)));
-            if destruct_type == 1:
+            probab = random.choices([1, 2, 3, 4], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal])[0];
+            if probab == 1:
                 current_sol = destruir_OR(current_sol);
                 current_cost = EvalAllORs(current_sol[0], VERSION="C");
-            else:
-                if random.random() < prob_elite:
-                    _, chosen_elite_sol = random.choice(elite_pool);
-                    current_sol = copy.deepcopy(chosen_elite_sol);
-                    current_cost = EvalAllORs(current_sol[0], VERSION=version);
-                else:
-                    pick = random.choices([1, 2, 3], weights=[prob_GRASP1, prob_GRASP2, prob_GRASP3])[0];
-                    current_sol = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, modo=pick, VERSION="C", hablar=False);
-                    current_cost = EvalAllORs(current_sol[0], VERSION=version);
-                T = temp_inicial;
+            elif probab == 2:
+                _, chosen_elite_sol = random.choice(elite_pool);
+                current_sol = copy.deepcopy(chosen_elite_sol);
+                current_cost = EvalAllORs(current_sol[0], VERSION=version);
+            elif probab == 3:
+                pick = random.choices([1, 2, 3], weights=[prob_GRASP1, prob_GRASP2, prob_GRASP3])[0];
+                current_sol = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, modo=pick, VERSION="C", hablar=False);
+                current_cost = EvalAllORs(current_sol[0], VERSION=version);
+            else: 
+                current_sol = normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, VERSION="C", hablar=False);
+                current_cost = EvalAllORs(current_sol[0], VERSION=version);
+            T = temp_inicial;
             d_ = 0;
         current_time = time.time();
         if current_time - initial_time >= 90:
@@ -594,11 +622,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
             mejor = m;
     '''
     mejor_costo, mejor = elite_pool[0];
-    #mejor = reparar(mejor)
-    #num_asignados_antes = sum(1 for p in mejor[0] if p != -1);
     #mejor = final_add_patients(mejor, VERSION=version);
-    #mejor = reparar(mejor)
-    #num_asignados_despues = sum(1 for p in mejor[0] if p != -1);
     return mejor, (lista_evaluacion, lista_iteracion, metadata_pert, metadata_search)
 
 # ------------------------------------------------------------------------------------
@@ -606,19 +630,10 @@ def metaheuristic(inicial, max_iter=50, destruct_type = 1, destruct=200, temp_in
 # ------------------------------------------------------------------------------------
 def main():
     global typePatients, nPatients, nDays, min_affinity, nSurgeons, nFichas, time_limit, bks
-    if len(sys.argv) != 32:
-        print("Usage: metaheuristic.py <instanceID> <seed> <randomSeed> <instanceFile> "
-              "<destruct> <temp_inicial> <alpha> <prob_CambiarPrimarios> <prob_CambiarSecundarios>"
-              "<prob_MoverPaciente_bloque> <prob_MoverPaciente_dia>" 
-              "<prob_EliminarPaciente> <prob_AgregarPaciente_1> <prob_AgregarPaciente_2> <prob_DestruirAgregar10>"
-              "<prob_MejorarAfinidad_primario> <prob_MejorarAfinidad_secundario>"
-              "<prob_AdelantarDia> <prob_MejorOR> <prob_AdelantarTodos>"
-              "<prob_CambiarPaciente1> <prob_CambiarPaciente2> <prob_CambiarPaciente3>"
-              "<destruct_type> <prob_Busq> <GRASP_alpha> <elite_size> <prob_elite>" \
-              "<prob_GRASP1> <prob_GRASP2> <prob_GRASP3>")
+    if len(sys.argv) != 35:
         sys.exit(1)
 
-    # Extract all 31 arguments
+    # Extract all 34 arguments
     instance_id = sys.argv[1]
     seed = sys.argv[2]
     random_seed = sys.argv[3]
@@ -646,15 +661,18 @@ def main():
     prob_CambiarPaciente3 = float(sys.argv[23])
 
     destruct_type = int(sys.argv[24])
+    prob_DestruirOR = float(sys.argv[25])
+    prob_elite = float(sys.argv[26])
+    prob_GRASP = float(sys.argv[27])
+    prob_normal = float(sys.argv[28])
     prob_Pert = 1;
-    prob_Busq = float(sys.argv[25])
-    GRASP_alpha = float(sys.argv[26])
-    elite_size = int(sys.argv[27])
-    prob_elite = float(sys.argv[28])
+    prob_Busq = float(sys.argv[29])
+    GRASP_alpha = float(sys.argv[30])
+    elite_size = int(sys.argv[31])
 
-    prob_GRASP1 = float(sys.argv[29])
-    prob_GRASP2 = float(sys.argv[30])
-    prob_GRASP3 = float(sys.argv[31])
+    prob_GRASP1 = float(sys.argv[32])
+    prob_GRASP2 = float(sys.argv[33])
+    prob_GRASP3 = float(sys.argv[34])
 
     random.seed(seed);
     max_iter = 125000;
@@ -687,8 +705,9 @@ def main():
                                             prob_AdelantarDia=prob_AdelantarDia, prob_MejorOR=prob_MejorOR,
                                             prob_AdelantarTodos=prob_AdelantarTodos,
                                             prob_CambiarPaciente1=prob_CambiarPaciente1, prob_CambiarPaciente2=prob_CambiarPaciente2, prob_CambiarPaciente3=prob_CambiarPaciente3,
+                                            prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, prob_normal=prob_normal,
                                             prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec, GRASP_alpha=GRASP_alpha, 
-                                            elite_size=elite_size, prob_elite=prob_elite, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3);
+                                            elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3);
         solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
     elapsed = time.time() - start_time
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
