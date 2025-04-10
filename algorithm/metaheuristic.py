@@ -586,7 +586,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
             mejores_sols.append((copy.deepcopy(current_sol)));
             probab = random.choices([1, 2, 3, 4], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal])[0];
             if probab == 1:
-                current_sol = destruir_OR(current_sol);
+                current_sol = destruir_OR(current_sol, OT, dictCosts, nSlot, nDays, room, day);
                 current_cost = EvalAllORs(current_sol[0], VERSION="C");
             elif probab == 2:
                 _, chosen_elite_sol = random.choice(elite_pool);
