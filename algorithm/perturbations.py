@@ -17,7 +17,7 @@ def is_feasible_block(p, o, d, t, AOR):
         return True
     return False
 
-def CambiarPrimarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+def CambiarPrimarios(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
@@ -103,7 +103,7 @@ def CambiarPrimarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
         surgeon_schedule_copy[cir2][d2][t2 + b] = -1;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def CambiarSecundarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+def CambiarSecundarios(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
@@ -185,7 +185,7 @@ def CambiarSecundarios(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot,
         surgeon_schedule_copy[sec2][d2][t2 + b] = -1;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def MoverPaciente_bloque(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+def MoverPaciente_bloque(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
     fichas_copy = copy.deepcopy(solucion[3]);
@@ -265,7 +265,7 @@ def MoverPaciente_bloque(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlo
     #print(f"[MoverPaciente_bloque] Paciente {p} movido del bloque {t} al bloque {new_t}.") if hablar else None;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def MoverPaciente_dia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+def MoverPaciente_dia(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
     fichas_copy = copy.deepcopy(solucion[3]);
@@ -348,7 +348,7 @@ def MoverPaciente_dia(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
     #print(f"[MoverPaciente_dia] Paciente {p} movido desde el día {d} hasta el día {new_d}.") if hablar else None;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def EliminarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+def EliminarPaciente(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
@@ -378,7 +378,7 @@ def EliminarPaciente(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, n
     #print(f"[EliminarPaciente] Paciente {p} eliminado del bloque {start}.") if hablar else None;
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+def AgregarPaciente_1(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
@@ -459,7 +459,7 @@ def AgregarPaciente_1(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
         print("[AgregarPaciente_1] No se pudo asignar ningún paciente.");
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def AgregarPaciente_2(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+def AgregarPaciente_2(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
     fichas_copy = copy.deepcopy(solucion[3]);
@@ -540,7 +540,7 @@ def AgregarPaciente_2(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
         #print(f"[AgregarPaciente_2] No se encontró bloque factible para p={chosen_p}.")
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def DestruirAgregar10(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+def DestruirAgregar10(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
     fichas_copy = copy.deepcopy(solucion[3]);
@@ -563,7 +563,7 @@ def DestruirAgregar10(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
 
         for p_remove in patients_to_remove:
             start_blk_old = pacientes_copy[p_remove]
-            if start_blk_old == -1: # Should not happen, but safety check
+            if start_blk_old == -1:
                 continue
 
             try:
@@ -592,7 +592,6 @@ def DestruirAgregar10(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
                  continue
             cost_old = dictCosts[cost_key]
 
-            # Remove assignments
             for b in range(dur):
                 ob_old = start_blk_old + b
                 primarios_copy.pop(ob_old, None)
@@ -607,7 +606,6 @@ def DestruirAgregar10(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
                      if surgeon_schedule_copy[a][d_old][t_old + b] == p_remove:
                          surgeon_schedule_copy[a][d_old][t_old + b] = -1
 
-            # Refund fichas
             for d_aux in range(d_old, nDays):
                 fichas_key_refund = (s, d_aux)
                 if fichas_key_refund in fichas_copy:
@@ -621,7 +619,6 @@ def DestruirAgregar10(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
         if hablar:
              print(f"[DestructAndAdd] Successfully removed {num_removed} patients.")
 
-    # --- Construction Phase ---
     current_unscheduled = [p for p, blk in enumerate(pacientes_copy) if blk == -1]
     candidates_to_add = [p for p in current_unscheduled if p not in removed_patient_ids]
     num_added = 0
@@ -648,7 +645,6 @@ def DestruirAgregar10(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
             for o in range(num_ors):
                 for d in range(nDays):
                     for t in range(nSlot):
-                        # Basic time and OR availability check
                         if t + dur <= nSlot and or_schedule_copy[o][d][t] == -1:
                              # Check full duration OR availability
                              if all(or_schedule_copy[o][d][t + b] == -1 for b in range(dur)):
@@ -658,18 +654,15 @@ def DestruirAgregar10(solucion, surgeon, second, OT, SP, AOR, dictCosts, nSlot, 
             for start_block in potential_starts:
                 o, d, t = decompress(start_block, nSlot, nDays)
 
-                # Check constraints specific to this block
                 if t < nSlot // 2 and (t + dur) > nSlot // 2:
                     continue
                 if AOR[p_add][o][t][d % 5] != 1:
                     continue
 
-                # Find compatible & available surgeons
                 comp_mains = [s for s in surgeon if SP[p_add][s] == 1 and all(surgeon_schedule_copy[s][d][t + b] == -1 for b in range(dur))]
                 if not comp_mains:
                     continue
 
-                # Try find a primary/secondary combo that can afford it
                 found_affordable_combo = False
                 for cm in comp_mains:
                     comp_second = [a for a in second if a != cm and all(surgeon_schedule_copy[a][d][t + b] == -1 for b in range(dur))]

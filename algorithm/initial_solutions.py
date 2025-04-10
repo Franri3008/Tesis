@@ -94,7 +94,7 @@ def normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas
         fichas_por_dia = [fichas[(s, d)] for d in day];
     return (asignP, dictS, dictA), surgeon_schedule, or_schedule, fichas
 
-def GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=0.1, VERSION="C", hablar=False):
+def GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=0.1, modo=1, VERSION="C", hablar=False):
     if not (0 < alpha <= 1):
         raise ValueError("alpha must be between 0 (exclusive) and 1 (inclusive)");
     all_personnel = set(surgeon).union(second);
@@ -150,10 +150,14 @@ def GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas,
     unassigned_patients = set(patient);
 
     while unassigned_patients:
-        # 1. Identify Candidates (all unassigned patients)
         candidates = list(unassigned_patients);
-        # 2. Evaluate Candidates (using the greedy criterion)
-        candidates.sort(key=lambda p: I[(p, 0)], reverse=True);
+        if modo == 1:
+            candidates.sort(key=lambda p: I[(p, 0)], reverse=True);
+        elif modo == 2:
+            candidates.sort(key=lambda p: OT[p], reverse=False);
+        else:
+            candidates.sort(key=lambda p: I[(p, 0)]/OT[p], reverse=True);
+        
         if not candidates:
             break;
         best_score = I[candidates[0], 0] if candidates else 0;
@@ -168,13 +172,11 @@ def GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas,
              else:
                  break
 
-        # 4. Select Patient Randomly from RCL
         selected_patient = random.choice(rcl);
         p = selected_patient;
         duracion_p = OT[p];
         assigned_this_iteration = False;
 
-        # 5. Assign Selected Patient (using the original greedy assignment logic)
         for o in room:
             for d in day:
                 for t in range(nSlot - duracion_p + 1):
