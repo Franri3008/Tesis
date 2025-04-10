@@ -35,13 +35,13 @@ def normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas
 
     def asignar_paciente(p, s, a, o, d, t, duracion):
         if asignP[p] == -1:
-            asignP[p] = compress(o, d, t);
+            asignP[p] = compress(o, d, t, nSlot, len(day));
             for b in range(int(duracion)):
                 or_schedule[o][d][t + b] = p;
                 surgeon_schedule[s][d][t + b] = p;
                 surgeon_schedule[a][d][t + b] = p;
 
-                id_block = compress(o, d, t + b);
+                id_block = compress(o, d, t + b, nSlot, len(day));
                 dictS[id_block] = s;
                 dictA[id_block] = a;
                 timeUsedMap[s].add((d, t + b));
@@ -76,7 +76,7 @@ def normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas
                             resultados = encontrar_pacientes_cirujanos(p)
                             for (p_res, s, a, dur) in resultados:
                                 if cirujano_disponible(s, a, o, d, t, dur):
-                                    cost = dictCosts[(s, a, compress(o, d, t))]
+                                    cost = dictCosts[(s, a, compress(o, d, t, nSlot, len(day)))]
                                     if all(fichas[(s, d_aux)] >= cost*(VERSION=="C") for d_aux in range(d, len(day))):
                                         asignar_paciente(p_res, s, a, o, d, t, dur)
                                         for d_aux in range(d, len(day)):

@@ -31,9 +31,9 @@ prob_Busq "" r (0.00, 1.00)
 GRASP_alpha "" r (0.01, 1.00)
 elite_size "" i (1, 10)
 
-prob_GRASP1 = r (0.01, 1.00)
-prob_GRASP2 = r (0.01, 1.00)
-prob_GRASP3 = r (0.01, 1.00)
+prob_GRASP1 "" r (0.01, 1.00)
+prob_GRASP2 "" r (0.01, 1.00)
+prob_GRASP3 "" r (0.01, 1.00)
 
 [global]
 digits = 4
