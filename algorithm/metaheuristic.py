@@ -35,7 +35,10 @@ from localsearches import (
     MejorarAfinidad_secundario,
     AdelantarDia,
     MejorOR,
-    AdelantarTodos
+    AdelantarTodos,
+    CambiarPaciente1,
+    CambiarPaciente2,
+    CambiarPaciente3
 )
 
 import initial_solutions
