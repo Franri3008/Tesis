@@ -156,10 +156,10 @@ def load_data_and_config():
     global dictCosts
 
     #if testing == False:
-    #    with open(f"../input/{entrada}.json") as file:
+    #    with open(f"input/{entrada}.json") as file:
     #        data = json.load(file)
     #else:
-    #    with open("../input/inst_test.json") as file:
+    #    with open("input/inst_test.json") as file:
     #        data = json.load(file)
 
     #config = data["configurations"]
@@ -602,7 +602,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
             T = temp_inicial;
             d_ = 0;
         current_time = time.time();
-        if current_time - initial_time >= 90:
+        if current_time - initial_time >= 10:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
     
@@ -695,7 +695,7 @@ def main():
 
     start_time = time.time()
     solutions = [];
-    for ejec in range(5):
+    for ejec in range(3):
         best_solution, stats = metaheuristic(inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
@@ -713,6 +713,7 @@ def main():
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
     #print(final_cost)
     print(np.mean(solutions))
+    return np.round(np.mean(solutions), 3)
 
 if __name__ == "__main__":
     main()
