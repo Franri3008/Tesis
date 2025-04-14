@@ -1,8 +1,8 @@
 import importlib
-import metaheuristic
+import meta_test
 import pandas as pd
 
-importlib.reload(metaheuristic)
+importlib.reload(meta_test)
 
 reproduccion = [
     "699 348.3064 0.9294 0.5788 0.1834 0.0113 0.8166 0.6073 0.5 0.7267 0.0362 0.9632 0.4424 0.8195 0.3605 0.573 0.218 0.3627 0.0611 1 0.6984 0.567 0.3064 0.2407 0.152 0.4833 8 0.2649 0.7624 0.5197",
@@ -65,18 +65,34 @@ df_out.rename(columns={"index": "Parámetro"}, inplace=True);
 #df_out.to_csv("reproduccion.csv", index=False, sep=";", float_format="%.4f");
 
 dict_gaps = {"Ejecuciones": [f"Ejec{i}" for i in range(len(reproduccion))]};
-for i in range(1, 16):
-    dict_gaps[f"Instancia {i}"] = [];
+num_reps = len(reproduccion);
+columns_lvl1 = [];
+columns_lvl2 = [];
+
+metrics = ["Promedio", "Mejor", "Promedio_Gap", "Mejor_Gap", "Tiempo"];
+
+for i in range(num_reps):
+    columns_lvl1 += [f"Ejec{i+1}"] * len(metrics);
+    columns_lvl2 += metrics;
+
+data_rows = [];
+for i in range(1, 3):
+    fila = [];
     count = 0;
     for r in reproduccion:
         count += 1;
         valores = r.split();
         sys.argv = ["metaheuristic.py", "0", "0", "0", f"../irace/instances/instance{i}.json"] + valores;
         print(f"Reproducción {count}, instancia {i}:", end=" ");
-        result = metaheuristic.main();
-        dict_gaps[f"Instancia {i}"].append(result);
+        result = meta_test.main();  # (promedio, mejor, promedio_gap, mejor_gap, tiempo)
+        fila.extend(result);
+    data_rows.append(fila);
 
-df_gaps = pd.DataFrame(dict_gaps);
+multi_cols = pd.MultiIndex.from_arrays([columns_lvl1, columns_lvl2]);
+df_gaps = pd.DataFrame(data_rows, columns=multi_cols);
+
+df_gaps.insert(0, ("", ""), [f"Instancia {i}" for i in range(1, 3)]);
+
 with pd.ExcelWriter("reproduccion.xlsx", engine="xlsxwriter") as writer:
     df_out.to_excel(writer, sheet_name="Parámetros", index=False, float_format="%.4f");
-    df_gaps.to_excel(writer, sheet_name="Gaps", index=False, float_format="%.4f");
+    df_gaps.to_excel(writer, sheet_name="Gaps", float_format="%.4f");

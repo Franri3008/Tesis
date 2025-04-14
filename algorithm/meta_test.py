@@ -127,7 +127,7 @@ def EvalAllORs(sol, VERSION="C"):
                 leftover_fichas = fichas[s_idx][d_idx]
                 puntaje -= leftover_fichas * multiplicador(d_idx)
 
-    return 1 - (puntaje / bks)
+    return -1*puntaje
 
 def compress(o, d, t):
     return o * nSlot * nDays + d * nSlot + t
@@ -715,7 +715,7 @@ def main():
     print(np.mean(solutions))
 
     #Para comprobador.py
-    return np.round(np.mean(solutions), 3), elapsed, min(solutions)
+    return -1*np.round(np.mean(solutions), 5), -1*min(solutions), 1 - (-1*np.mean(solutions)/bks), 1 - (-1*min(solutions)/bks), elapsed
 
 if __name__ == "__main__":
     main()
