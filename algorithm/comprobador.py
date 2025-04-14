@@ -76,7 +76,7 @@ for i in range(num_reps):
     columns_lvl2 += metrics;
 
 data_rows = [];
-for i in range(1, 3):
+for i in range(1, 16):
     fila = [];
     count = 0;
     for r in reproduccion:
@@ -91,7 +91,7 @@ for i in range(1, 3):
 multi_cols = pd.MultiIndex.from_arrays([columns_lvl1, columns_lvl2]);
 df_gaps = pd.DataFrame(data_rows, columns=multi_cols);
 
-df_gaps.insert(0, ("", ""), [f"Instancia {i}" for i in range(1, 3)]);
+df_gaps.insert(0, ("", ""), [f"Instancia {i}" for i in range(1, 16)]);
 
 with pd.ExcelWriter("reproduccion.xlsx", engine="xlsxwriter") as writer:
     df_out.to_excel(writer, sheet_name="Parámetros", index=False, float_format="%.4f");
