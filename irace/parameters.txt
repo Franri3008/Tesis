@@ -1,4 +1,4 @@
-destruct  "" i (100, 10000)
+destruct  "" i (100, 10000) | destruct_type == 1
 temp_ini  "" r (100.0, 2000.0)
 alpha     "" r (0.90, 0.999)
 
@@ -21,19 +21,19 @@ prob_CambiarPaciente2 "" r (0.00, 1.00)
 prob_CambiarPaciente3 "" r (0.00, 1.00)
 
 destruct_type "" c (0, 1)
-prob_DestruirOR "" r (0.00, 1.00)
-prob_elite "" r (0.00, 1.00)
-prob_GRASP "" r (0.00, 1.00)
-prob_normal "" r (0.00, 1.00)
+prob_DestruirOR "" r (0.00, 1.00) | destruct_type == 1
+prob_elite "" r (0.00, 1.00) | destruct_type == 1
+prob_GRASP "" r (0.00, 1.00) | destruct_type == 1
+prob_normal "" r (0.00, 1.00) | destruct_type == 1
 
 prob_Busq "" r (0.00, 1.00)
 
 GRASP_alpha "" r (0.01, 1.00)
 elite_size "" i (1, 10)
 
-prob_GRASP1 "" r (0.01, 1.00)
-prob_GRASP2 "" r (0.01, 1.00)
-prob_GRASP3 "" r (0.01, 1.00)
+prob_GRASP1 "" r (0.01, 1.00) | destruct_type == 1
+prob_GRASP2 "" r (0.01, 1.00) | destruct_type == 1
+prob_GRASP3 "" r (0.01, 1.00) | destruct_type == 1
 
 [global]
 digits = 4
