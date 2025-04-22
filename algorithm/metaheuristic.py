@@ -14,6 +14,8 @@ import time
 import copy
 import math
 import importlib
+import argparse
+
 
 import perturbations
 importlib.reload(perturbations)
@@ -629,50 +631,79 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
 # 3. MAIN
 # ------------------------------------------------------------------------------------
 def main():
-    global typePatients, nPatients, nDays, min_affinity, nSurgeons, nFichas, time_limit, bks
-    if len(sys.argv) != 35:
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("instance_id")
+    parser.add_argument("seed")
+    parser.add_argument("random_seed")
+    parser.add_argument("instance_file")
+    parser.add_argument("--destruct", type=int, default=200)
+    parser.add_argument("--temp_inicial", type=float, default=500.0)
+    parser.add_argument("--alpha", type=float, default=0.99)
+    parser.add_argument("--prob_CambiarPrimarios", type=float, default=15.0)
+    parser.add_argument("--prob_CambiarSecundarios", type=float, default=15.0)
+    parser.add_argument("--prob_MoverPaciente_bloque", type=float, default=20.0)
+    parser.add_argument("--prob_MoverPaciente_dia", type=float, default=10.0)
+    parser.add_argument("--prob_EliminarPaciente", type=float, default=20.0)
+    parser.add_argument("--prob_AgregarPaciente_1", type=float, default=19.0)
+    parser.add_argument("--prob_AgregarPaciente_2", type=float, default=19.0)
+    parser.add_argument("--prob_DestruirAgregar10", type=float, default=2.0)
+    parser.add_argument("--prob_MejorarAfinidad_primario", type=float, default=20.0)
+    parser.add_argument("--prob_MejorarAfinidad_secundario", type=float, default=20.0)
+    parser.add_argument("--prob_AdelantarDia", type=float, default=29.0)
+    parser.add_argument("--prob_MejorOR", type=float, default=29.0)
+    parser.add_argument("--prob_AdelantarTodos", type=float, default=2.0)
+    parser.add_argument("--prob_CambiarPaciente1", type=float, default=10.0)
+    parser.add_argument("--prob_CambiarPaciente2", type=float, default=10.0)
+    parser.add_argument("--prob_CambiarPaciente3", type=float, default=10.0)
+    parser.add_argument("--destruct_type", type=int, default=1)
+    parser.add_argument("--prob_DestruirOR", type=float, default=0.2)
+    parser.add_argument("--prob_elite", type=float, default=0.3)
+    parser.add_argument("--prob_GRASP", type=float, default=0.3)
+    parser.add_argument("--prob_normal", type=float, default=0.2)
+    parser.add_argument("--prob_Busq", type=float, default=1.0)
+    parser.add_argument("--GRASP_alpha", type=float, default=0.1)
+    parser.add_argument("--elite_size", type=int, default=5)
+    parser.add_argument("--prob_GRASP1", type=float, default=0.3)
+    parser.add_argument("--prob_GRASP2", type=float, default=0.3)
+    parser.add_argument("--prob_GRASP3", type=float, default=0.4)
 
-    # Extract all 34 arguments
-    instance_id = sys.argv[1]
-    seed = sys.argv[2]
-    random_seed = sys.argv[3]
-    instance_file = sys.argv[4]
-    destruct = int(sys.argv[5])
-    temp_inicial = float(sys.argv[6])
-    alpha = float(sys.argv[7])
+    args = parser.parse_args()
 
-    prob_CambiarPrimarios = float(sys.argv[8])
-    prob_CambiarSecundarios = float(sys.argv[9])
-    prob_MoverPaciente_bloque = float(sys.argv[10])
-    prob_MoverPaciente_dia = float(sys.argv[11])
-    prob_EliminarPaciente = float(sys.argv[12])
-    prob_AgregarPaciente_1 = float(sys.argv[13])
-    prob_AgregarPaciente_2 = float(sys.argv[14])
-    prob_DestruirAgregar10 = float(sys.argv[15])
-
-    prob_MejorarAfinidad_primario = float(sys.argv[16])
-    prob_MejorarAfinidad_secundario = float(sys.argv[17])
-    prob_AdelantarDia = float(sys.argv[18])
-    prob_MejorOR = float(sys.argv[19])
-    prob_AdelantarTodos = float(sys.argv[20])
-    prob_CambiarPaciente1 = float(sys.argv[21])
-    prob_CambiarPaciente2 = float(sys.argv[22])
-    prob_CambiarPaciente3 = float(sys.argv[23])
-
-    destruct_type = int(sys.argv[24])
-    prob_DestruirOR = float(sys.argv[25])
-    prob_elite = float(sys.argv[26])
-    prob_GRASP = float(sys.argv[27])
-    prob_normal = float(sys.argv[28])
-    prob_Pert = 1;
-    prob_Busq = float(sys.argv[29])
-    GRASP_alpha = float(sys.argv[30])
-    elite_size = int(sys.argv[31])
-
-    prob_GRASP1 = float(sys.argv[32])
-    prob_GRASP2 = float(sys.argv[33])
-    prob_GRASP3 = float(sys.argv[34])
+    instance_id                  = args.instance_id;
+    seed                         = args.seed;
+    random_seed                  = args.random_seed;
+    instance_file                = args.instance_file;
+    destruct                     = args.destruct;
+    temp_inicial                 = args.temp_inicial;
+    alpha                        = args.alpha;
+    prob_CambiarPrimarios        = args.prob_CambiarPrimarios;
+    prob_CambiarSecundarios      = args.prob_CambiarSecundarios;
+    prob_MoverPaciente_bloque    = args.prob_MoverPaciente_bloque;
+    prob_MoverPaciente_dia       = args.prob_MoverPaciente_dia;
+    prob_EliminarPaciente        = args.prob_EliminarPaciente;
+    prob_AgregarPaciente_1       = args.prob_AgregarPaciente_1;
+    prob_AgregarPaciente_2       = args.prob_AgregarPaciente_2;
+    prob_DestruirAgregar10       = args.prob_DestruirAgregar10;
+    prob_MejorarAfinidad_primario= args.prob_MejorarAfinidad_primario;
+    prob_MejorarAfinidad_secundario= args.prob_MejorarAfinidad_secundario;
+    prob_AdelantarDia            = args.prob_AdelantarDia;
+    prob_MejorOR                 = args.prob_MejorOR;
+    prob_AdelantarTodos          = args.prob_AdelantarTodos;
+    prob_CambiarPaciente1        = args.prob_CambiarPaciente1;
+    prob_CambiarPaciente2        = args.prob_CambiarPaciente2;
+    prob_CambiarPaciente3        = args.prob_CambiarPaciente3;
+    destruct_type                = args.destruct_type;
+    prob_DestruirOR              = args.prob_DestruirOR;
+    prob_elite                   = args.prob_elite;
+    prob_GRASP                   = args.prob_GRASP;
+    prob_normal                  = args.prob_normal;
+    prob_Pert                    = 1;
+    prob_Busq                    = args.prob_Busq;
+    GRASP_alpha                  = args.GRASP_alpha;
+    elite_size                   = args.elite_size;
+    prob_GRASP1                  = args.prob_GRASP1;
+    prob_GRASP2                  = args.prob_GRASP2;
+    prob_GRASP3                  = args.prob_GRASP3;
 
     random.seed(seed);
     max_iter = 125000;
