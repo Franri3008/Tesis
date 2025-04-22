@@ -477,11 +477,12 @@ def destruir_OR(solution, OT, dictCosts, nSlot, nDays, room, day):
 def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
                   prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
-                  prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29, 
+                  prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29,
                   prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, prob_CambiarPaciente3=10,
                   prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
-                  prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1, elite_size=5, prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4):
-    
+                  prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1, elite_size=5,
+                  prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
+                  acceptance_criterion="SA"):  
     random.seed(semilla);
     initial_time = time.time();
 
@@ -499,7 +500,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                        "AdelantarDia": [0, 0, prob_AdelantarDia], "MejorOR": [0, 0, prob_MejorOR], "AdelantarTodos": [0, 0, prob_AdelantarTodos], 
                        "CambiarPaciente1": [0, 0, prob_CambiarPaciente1], "CambiarPaciente2": [0, 0, prob_CambiarPaciente2], 
                        "CambiarPaciente3": [0, 0, prob_CambiarPaciente3], "NoOp": [0, 0, 0]};
-    
+
     lista_evaluacion = [];
     lista_iteracion = [];
 
@@ -516,7 +517,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                 funcion = f"{perturbation}(sol, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays)";
                 new_sol = eval(funcion);
                 return new_sol, perturbation
-        return sol, "NoOp"
+        return sol, "NoOp";
 
     def BusquedaLocal(sol):
         search_probs = [v[2] for v in metadata_search.values()];
@@ -531,7 +532,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                 funcion = f"{localsearch}(sol, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays)";
                 new_sol = eval(funcion);
                 return new_sol, localsearch
-        return sol, "NoOp"
+        return sol, "NoOp";
 
     mejores_sols = [((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy())];
     best_solution = ((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
@@ -550,42 +551,66 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
         else:
             new_sol, last_p = copy.deepcopy(current_sol), "NoOp";
         if random.uniform(0, 1) < prob_Busq:
-            new_sol, last_s = BusquedaLocal(new_sol);        
+            new_sol, last_s = BusquedaLocal(new_sol);
         else:
             new_sol, last_s = copy.deepcopy(current_sol), "NoOp";
-        
+
         new_cost = EvalAllORs(new_sol[0], VERSION="C");
-
-        #delta = new_cost - current_cost;
         delta = current_cost - new_cost;
-        if delta > 0:
-            metadata_pert[last_p][1] += 1;
-            metadata_search[last_s][1] += 1;
-            current_sol = copy.deepcopy(new_sol);
-            current_cost = new_cost;
 
-            if new_cost < best_cost:
+        ac = acceptance_criterion.lower();
+        if ac == "no":
+            if delta > 0:
+                metadata_pert[last_p][1] += 1;
+                metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
                 current_cost = new_cost;
-
+                if new_cost < best_cost:
+                    best_solution = copy.deepcopy(current_sol);
+                    best_cost = current_cost;
+                    elite_pool.append((best_cost, copy.deepcopy(best_solution)));
+                    elite_pool.sort(key=lambda x: x[0], reverse=False);
+                    elite_pool = elite_pool[:elite_size];
+                d_ = 0;
+            else:
+                d_ += 1;
+        elif ac == "sa":
+            if delta > 0 or random.random() < math.exp(delta / T):
+                metadata_pert[last_p][1] += 1;
+                metadata_search[last_s][1] += 1;
+                current_sol = copy.deepcopy(new_sol);
+                current_cost = new_cost;
+                if new_cost < best_cost:
+                    best_solution = copy.deepcopy(current_sol);
+                    best_cost = current_cost;
+                    elite_pool.append((best_cost, copy.deepcopy(best_solution)));
+                    elite_pool.sort(key=lambda x: x[0], reverse=False);
+                    elite_pool = elite_pool[:elite_size];
+                d_ = 0;
+            else:
+                d_ += 1;
+        elif ac == "ils":
+            if new_cost < best_cost:
+                metadata_pert[last_p][1] += 1;
+                metadata_search[last_s][1] += 1;
+                current_sol = copy.deepcopy(new_sol);
+                current_cost = new_cost;
                 best_solution = copy.deepcopy(current_sol);
                 best_cost = current_cost;
-            
                 elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                 elite_pool.sort(key=lambda x: x[0], reverse=False);
                 elite_pool = elite_pool[:elite_size];
-            d_ = 0;
-        else:
-            prob_aceptacion = math.exp(delta / T)
-            if random.random() < prob_aceptacion:
-                current_sol = copy.deepcopy(new_sol);
-                current_cost = new_cost;
+                d_ = 0;
             else:
-                d_ += 1;
+                current_sol = copy.deepcopy(best_solution);
+                current_cost = best_cost;
+                d_ = 0;
+        else:
+            raise ValueError(f"Unknown acceptance criterion: {acceptance_criterion}");
 
         T *= alpha;
         if d_ >= destruct and destruct_type != 0:
-            mejores_sols.append((copy.deepcopy(current_sol)));
+            mejores_sols.append(copy.deepcopy(current_sol));
             probab = random.choices([1, 2, 3, 4], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal])[0];
             if probab == 1:
                 current_sol = destruir_OR(current_sol, OT, dictCosts, nSlot, nDays, room, day);
@@ -607,25 +632,11 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
         if current_time - initial_time >= 90:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
-    
+
     mejores_sols.append(best_solution);
-    '''
-    mejor_costo = float("inf");
-    mejor = None
-    for m in mejores_sols:
-        try:
-            val = EvalAllORs(m[0], VERSION="C")
-        except Exception as error:
-            val = float("inf");
-            with open("./errors.txt", "a") as file:
-                file.write(f"{error} \n/// Iteración: {semilla} - {mejores_sols.index(m)}/{len(mejores_sols)}\n\n");
-        if val < mejor_costo:
-            mejor_costo = val
-            mejor = m;
-    '''
+
     mejor_costo, mejor = elite_pool[0];
-    #mejor = final_add_patients(mejor, VERSION=version);
-    return mejor, (lista_evaluacion, lista_iteracion, metadata_pert, metadata_search)
+    return mejor, (lista_evaluacion, lista_iteracion, metadata_pert, metadata_search);
 
 # ------------------------------------------------------------------------------------
 # 3. MAIN
@@ -667,6 +678,7 @@ def main():
     parser.add_argument("--prob_GRASP1", type=float, default=0.3)
     parser.add_argument("--prob_GRASP2", type=float, default=0.3)
     parser.add_argument("--prob_GRASP3", type=float, default=0.4)
+    parser.add_argument("--acceptance_criterion", type=str, default="SA")
 
     args = parser.parse_args()
 
@@ -705,6 +717,7 @@ def main():
     prob_GRASP1                  = args.prob_GRASP1;
     prob_GRASP2                  = args.prob_GRASP2;
     prob_GRASP3                  = args.prob_GRASP3;
+    acceptance_criterion         = args.acceptance_criterion;
 
     random.seed(seed);
     max_iter = 125000;
@@ -739,7 +752,8 @@ def main():
                                             prob_CambiarPaciente1=prob_CambiarPaciente1, prob_CambiarPaciente2=prob_CambiarPaciente2, prob_CambiarPaciente3=prob_CambiarPaciente3,
                                             prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, prob_normal=prob_normal,
                                             prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec, GRASP_alpha=GRASP_alpha, 
-                                            elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3);
+                                            elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3,
+                                            acceptance_criterion=acceptance_criterion);
         solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
     elapsed = time.time() - start_time
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
