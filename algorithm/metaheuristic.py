@@ -631,6 +631,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
 # 3. MAIN
 # ------------------------------------------------------------------------------------
 def main():
+    global typePatients, nPatients, nSurgeons, nDays, min_affinity, time_limit, bks
     parser = argparse.ArgumentParser()
     parser.add_argument("instance_id")
     parser.add_argument("seed")
