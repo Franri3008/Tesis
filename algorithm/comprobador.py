@@ -69,7 +69,7 @@ num_reps = len(reproduccion);
 columns_lvl1 = [];
 columns_lvl2 = [];
 
-metrics = ["Promedio", "Mejor", "Promedio_Gap", "Mejor_Gap", "Tiempo"];
+metrics = ["Promedio", "Mejor", "Promedio_Gap", "Mejor_Gap", "Tiempo", "AvgIter", "BestIter", "NumSched"];
 
 for i in range(num_reps):
     columns_lvl1 += [f"Ejec{i+1}"] * len(metrics);
@@ -82,10 +82,10 @@ for i in range(1, 16):
     for r in reproduccion:
         count += 1;
         valores = r.split();
-        sys.argv = ["metaheuristic.py", "0", "0", "0", f"../irace/instances/instance{i}.json"] + valores;
+        sys.argv = ["metaheuristic.py","0","0",f"../irace/instances/instance{i}.json"]+valores;
         print(f"Reproducción {count}, instancia {i}:", end=" ");
-        result = meta_test.main();  # (promedio, mejor, promedio_gap, mejor_gap, tiempo)
-        fila.extend(result);
+        promedio, mejor, prom_gap, mej_gap, tiempo, avg_iter, best_iter, num_sched = meta_test.main();
+        fila.extend([promedio, mejor, prom_gap, mej_gap, tiempo, avg_iter, best_iter, num_sched]);
     data_rows.append(fila);
 
 multi_cols = pd.MultiIndex.from_arrays([columns_lvl1, columns_lvl2]);

@@ -606,7 +606,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                 current_cost = best_cost;
                 d_ = 0;
         else:
-            raise ValueError(f"Unknown acceptance criterion: {acceptance_criterion}");
+            raise ValueError(f"criterio equivocado: {acceptance_criterion}");
 
         T *= alpha;
         if d_ >= destruct and destruct_type != 0:

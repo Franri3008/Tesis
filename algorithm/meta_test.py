@@ -570,6 +570,8 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                     elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                     elite_pool.sort(key=lambda x: x[0], reverse=False);
                     elite_pool = elite_pool[:elite_size];
+                    if 'iter_best' not in locals():
+                        iter_best = i
                 d_ = 0;
             else:
                 d_ += 1;
@@ -585,6 +587,8 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                     elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                     elite_pool.sort(key=lambda x: x[0], reverse=False);
                     elite_pool = elite_pool[:elite_size];
+                    if 'iter_best' not in locals():
+                        iter_best = i
                 d_ = 0;
             else:
                 d_ += 1;
@@ -599,6 +603,8 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                 elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                 elite_pool.sort(key=lambda x: x[0], reverse=False);
                 elite_pool = elite_pool[:elite_size];
+                if 'iter_best' not in locals():
+                    iter_best = i
                 d_ = 0;
             else:
                 current_sol = copy.deepcopy(best_solution);
@@ -631,11 +637,14 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
         if current_time - initial_time >= 90:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
-
+    
+    total_iters = i + 1
+    pacientes_best = best_solution[0][0]
+    num_sched = sum(1 for p in pacientes_best if p != -1)
     mejores_sols.append(best_solution);
 
     mejor_costo, mejor = elite_pool[0];
-    return mejor, (lista_evaluacion, lista_iteracion, metadata_pert, metadata_search);
+    return mejor, (lista_evaluacion, lista_iteracion, metadata_pert, metadata_search, total_iters, iter_best, num_sched);
 
 # ------------------------------------------------------------------------------------
 # 3. MAIN
@@ -738,6 +747,9 @@ def main():
 
     start_time = time.time()
     solutions = [];
+    all_iters     = [];
+    all_best_iters= [];
+    all_num_sched = [];
     for ejec in range(10):
         best_solution, stats = metaheuristic(inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
@@ -752,14 +764,30 @@ def main():
                                             prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec, GRASP_alpha=GRASP_alpha, 
                                             elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3,
                                             acceptance_criterion=acceptance_criterion);
+        promedio, mejor, prom_gap, mej_gap, tiempo, avg_iter, best_iter, num_sched = meta_test.main() if False else (None,None,None,None,None, None,None,None)
+        _,_,_,_, avg_iter, best_iter, num_sched = stats
         solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
+        all_iters.append(avg_iter)
+        all_best_iters.append(best_iter)
+        all_num_sched.append(num_sched)
     elapsed = time.time() - start_time
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
     #print(final_cost)
     print(np.mean(solutions))
 
     #Para comprobador.py
-    return -1*np.round(np.mean(solutions), 5), -1*min(solutions), 1 - (-1*np.mean(solutions)/bks), 1 - (-1*min(solutions)/bks), elapsed
+    mean_iters      = int(np.round(np.mean(all_iters)))
+    mean_best_iter  = int(np.round(np.mean(all_best_iters)))
+    mean_num_sched  = int(np.round(np.mean(all_num_sched)))
+    return (
+        -1*np.round(np.mean(solutions), 5),
+        -1*min(solutions),
+        1 - (-1*np.mean(solutions)/bks),
+        1 - (-1*min(solutions)/bks),
+        elapsed,
+        mean_iters,
+        mean_best_iter,
+        mean_num_sched)
 
 if __name__ == "__main__":
     main()
