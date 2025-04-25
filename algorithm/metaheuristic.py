@@ -761,7 +761,7 @@ def main():
     print(np.mean(solutions))
 
     #Para comprobador.py
-    return np.round(np.mean(solutions), 3), elapsed, min(solutions)
+    #return np.round(np.mean(solutions), 3), elapsed, min(solutions)
 
 if __name__ == "__main__":
     main()

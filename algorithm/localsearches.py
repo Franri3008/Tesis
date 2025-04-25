@@ -1,10 +1,17 @@
+# cython: language_level=3, boundscheck=False, wraparound=False, cdivision=True
 import random
 import copy
 import math
+import cython
 
+@cython.inline
+@cython.locals(o=cython.int, d=cython.int, t=cython.int, nSlot=cython.int, nDays=cython.int)
 def compress(o, d, t, nSlot, nDays):
     return o * nSlot * nDays + d * nSlot + t
 
+@cython.inline
+@cython.locals(val=cython.int, nSlot=cython.int, nDays=cython.int,
+               o=cython.int, d=cython.int, t=cython.int, temp=cython.int)
 def decompress(val, nSlot, nDays):
     o = val // (nSlot * nDays)
     temp = val % (nSlot * nDays)
@@ -12,12 +19,15 @@ def decompress(val, nSlot, nDays):
     t = temp % nSlot
     return o, d, t
 
+@cython.inline
+@cython.locals(p=cython.int, o=cython.int, d=cython.int, t=cython.int)
 def is_feasible_block(p, o, d, t, AOR):
-    if AOR[p][o][t][d % 5] == 1:
-        return True
-    return False
+    return AOR[p][o][t][d % 5] == 1
 
-def MejorarAfinidad_primario(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.locals(p_sel=cython.int, dur=cython.int, o=cython.int, d=cython.int, t=cython.int)
+cpdef MejorarAfinidad_primario(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
@@ -76,7 +86,10 @@ def MejorarAfinidad_primario(solucion, surgeon, second, OT, I, SP, AOR, dictCost
 
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def MejorarAfinidad_secundario(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.locals(p_sel=cython.int, dur=cython.int, o=cython.int, d=cython.int, t=cython.int)
+cpdef MejorarAfinidad_secundario(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     #sol = (solucion[0][0].copy(), solucion[0][1].copy(), solucion[0][2].copy());
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
@@ -134,7 +147,11 @@ def MejorarAfinidad_secundario(solucion, surgeon, second, OT, I, SP, AOR, dictCo
 
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
-def AdelantarDia(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.locals(p=cython.int, dur=cython.int, o=cython.int, d=cython.int, t=cython.int,
+               new_d=cython.int, new_t=cython.int, new_o=cython.int)
+cpdef AdelantarDia(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     surgeon_schedule_copy = copy.deepcopy(solucion[1]);
     or_schedule_copy = copy.deepcopy(solucion[2]);
     fichas_copy = copy.deepcopy(solucion[3]);
