@@ -19,6 +19,7 @@ prob_AdelantarTodos "--prob_AdelantarTodos " r (0.00, 1.00)
 prob_CambiarPaciente1 "--prob_CambiarPaciente1 " r (0.00, 1.00)
 prob_CambiarPaciente2 "--prob_CambiarPaciente2 " r (0.00, 1.00)
 prob_CambiarPaciente3 "--prob_CambiarPaciente3 " r (0.00, 1.00)
+prob_CambiarPaciente4 "--prob_CambiarPaciente4 " r (0.00, 1.00)
 
 destruct_type "--destruct_type " c (0, 1)
 prob_DestruirOR "--prob_DestruirOR " r (0.00, 1.00) | destruct_type == 1

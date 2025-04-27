@@ -800,3 +800,94 @@ def CambiarPaciente3(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot
     if not made_a_swap_overall and hablar:
         print("[CambiarPaciente3] No feasible swaps could be made for any unscheduled patient.")
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
+
+def CambiarPaciente4(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surgeon_schedule_copy = copy.deepcopy(solucion[1]);
+    or_schedule_copy = copy.deepcopy(solucion[2]);
+    fichas_copy = copy.deepcopy(solucion[3]);
+    pacientes_copy = copy.deepcopy(solucion[0][0]);
+    primarios_copy = copy.deepcopy(solucion[0][1]);
+    secundarios_copy = copy.deepcopy(solucion[0][2]);
+    num_patients = len(pacientes_copy);
+    num_ors = len(or_schedule_copy);
+
+    unscheduled = [p for p in range(num_patients) if pacientes_copy[p] == -1 and OT[p] > 0];
+    scheduled = [p for p in range(num_patients) if pacientes_copy[p] != -1 and OT[p] > 0];
+
+    if not unscheduled or not scheduled:
+        return solucion;
+
+    p_unsched = max(unscheduled, key=lambda p: I[(p,0)]/OT[p]);
+    dur_unsched = OT[p_unsched];
+    best_target = None;
+    min_ratio = math.inf;
+
+    for p_sched in scheduled:
+        start_blk = pacientes_copy[p_sched];
+        if start_blk not in primarios_copy or start_blk not in secundarios_copy:
+            continue;
+        o,d,t = decompress(start_blk,nSlot,nDays);
+        s = primarios_copy[start_blk];
+        a = secundarios_copy[start_blk];
+        if SP[p_unsched][s] != 1:
+            continue;
+        if t+dur_unsched>nSlot or (t<nSlot//2 and t+dur_unsched>nSlot//2):
+            continue;
+        can_place = True;
+        for b in range(dur_unsched):
+            cur_t=t+b;
+            if AOR[p_unsched][o][cur_t][d%5]!=1:
+                can_place=False;break;
+            if surgeon_schedule_copy[s][d][cur_t] not in (-1,p_sched):
+                can_place=False;break;
+            if surgeon_schedule_copy[a][d][cur_t] not in (-1,p_sched):
+                can_place=False;break;
+            if or_schedule_copy[o][d][cur_t] not in (-1,p_sched):
+                can_place=False;break;
+        if not can_place:
+            continue;
+        cost_key=(s,a,start_blk);
+        if cost_key not in dictCosts:
+            continue;
+        cost_diff=0;
+        for d_aux in range(d,nDays):
+            if fichas_copy.get((s,d_aux),-math.inf)+cost_diff<0:
+                can_place=False;break;
+        if not can_place:
+            continue;
+        ratio_sched=I[(p_sched,0)]/OT[p_sched];
+        if ratio_sched<min_ratio:
+            min_ratio=ratio_sched;
+            best_target=(p_sched,start_blk,dur_unsched,OT[p_sched],s,a,cost_diff);
+
+    if best_target is None:
+        return solucion;
+
+    p_sched_sel,start_blk,dur_unsched_new,dur_sched_old,s_sel,a_sel,cost_diff=best_target;
+    o,d,t=decompress(start_blk,nSlot,nDays);
+
+    for d_aux in range(d,nDays):
+        fichas_copy[(s_sel,d_aux)]+=cost_diff;
+
+    for b in range(dur_sched_old):
+        blk_old=start_blk+b;
+        cur_t=t+b;
+        primarios_copy.pop(blk_old,None);
+        secundarios_copy.pop(blk_old,None);
+        or_schedule_copy[o][d][cur_t]=-1;
+        surgeon_schedule_copy[s_sel][d][cur_t]=-1 if surgeon_schedule_copy[s_sel][d][cur_t]==p_sched_sel else surgeon_schedule_copy[s_sel][d][cur_t];
+        surgeon_schedule_copy[a_sel][d][cur_t]=-1 if surgeon_schedule_copy[a_sel][d][cur_t]==p_sched_sel else surgeon_schedule_copy[a_sel][d][cur_t];
+
+    for b in range(dur_unsched_new):
+        blk_new=start_blk+b;
+        cur_t=t+b;
+        primarios_copy[blk_new]=s_sel;
+        secundarios_copy[blk_new]=a_sel;
+        or_schedule_copy[o][d][cur_t]=p_unsched;
+        surgeon_schedule_copy[s_sel][d][cur_t]=p_unsched;
+        surgeon_schedule_copy[a_sel][d][cur_t]=p_unsched;
+
+    pacientes_copy[p_sched_sel]=-1;
+    pacientes_copy[p_unsched]=start_blk;
+
+    return ((pacientes_copy,primarios_copy,secundarios_copy),surgeon_schedule_copy,or_schedule_copy,fichas_copy);
