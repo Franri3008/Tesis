@@ -726,3 +726,150 @@ def DestruirAgregar10(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlo
             print(f"[DestructAndAdd] Successfully added {num_added} patients.")
 
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
+
+def DestruirAfinidad_Todos(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surgeon_schedule_copy = copy.deepcopy(solucion[1]);
+    or_schedule_copy = copy.deepcopy(solucion[2]);
+    fichas_copy = copy.deepcopy(solucion[3]);
+    pacientes_copy = copy.deepcopy(solucion[0][0]);
+    primarios_copy = copy.deepcopy(solucion[0][1]);
+    secundarios_copy = copy.deepcopy(solucion[0][2]);
+    scheduled = [p for p in range(len(pacientes_copy)) if pacientes_copy[p] != -1];
+    for p_sel in scheduled:
+        dur = int(OT[p_sel]);
+        start_blk = pacientes_copy[p_sel];
+        if start_blk not in primarios_copy or start_blk not in secundarios_copy:
+            continue;
+        o, d, t = decompress(start_blk, nSlot, nDays);
+        s_main = primarios_copy[start_blk];
+        a_old = secundarios_copy[start_blk];
+        worst_a = a_old;
+        worst_cost = dictCosts[(s_main, a_old, start_blk)];
+        for a in second:
+            if a == s_main:
+                continue;
+            if not all(surgeon_schedule_copy[a][d][t + b] == -1 for b in range(dur)):
+                continue;
+            cost_new = dictCosts[(s_main, a, start_blk)];
+            if cost_new < worst_cost and all(fichas_copy[(s_main, d_aux)] - cost_new >= 0 for d_aux in range(d, nDays)):
+                worst_cost = cost_new;
+                worst_a = a;
+        if worst_a == a_old:
+            continue;
+        for d_aux in range(d, nDays):
+            fichas_copy[(s_main, d_aux)] += dictCosts[(s_main, a_old, start_blk)] - worst_cost;
+        for b in range(dur):
+            blk = start_blk + b;
+            surgeon_schedule_copy[a_old][d][t + b] = -1;
+            secundarios_copy[blk] = worst_a;
+            surgeon_schedule_copy[worst_a][d][t + b] = p_sel;
+    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy);
+
+def DestruirAfinidad_Uno(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surgeon_schedule = copy.deepcopy(solucion[1]);
+    or_schedule = copy.deepcopy(solucion[2]);
+    fichas = copy.deepcopy(solucion[3]);
+    pacientes, primarios, secundarios = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
+    scheduled = [p for p in range(len(pacientes)) if pacientes[p] != -1];
+    if not scheduled: return solucion;
+    p_sel = random.choice(scheduled);
+    dur = OT[p_sel];
+    start_blk = pacientes[p_sel];
+    if start_blk not in primarios or start_blk not in secundarios: return solucion;
+    o,d,t = decompress(start_blk,nSlot,nDays);
+    s_main = primarios[start_blk];
+    a_old = secundarios[start_blk];
+    best_a = a_old;
+    best_cost = dictCosts[(s_main,a_old,start_blk)];
+    for a in second:
+        if a==s_main: continue;
+        if not all(surgeon_schedule[a][d][t+b]==-1 for b in range(dur)): continue;
+        cost_new = dictCosts[(s_main,a,start_blk)];
+        if cost_new < best_cost and all(fichas[(s_main,d_aux)] - (best_cost - cost_new) >= 0 for d_aux in range(d,nDays)):
+            best_cost = cost_new;
+            best_a = a;
+    if best_a == a_old: return solucion;
+    diff = dictCosts[(s_main,a_old,start_blk)] - best_cost;
+    for d_aux in range(d,nDays):
+        fichas[(s_main,d_aux)] += diff;
+    for b in range(dur):
+        blk = start_blk + b;
+        surgeon_schedule[a_old][d][t+b] = -1;
+        secundarios[blk] = best_a;
+        surgeon_schedule[best_a][d][t+b] = p_sel;
+    return ((pacientes,primarios,secundarios),surgeon_schedule,or_schedule,fichas);
+
+def PeorOR(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surg_sched = copy.deepcopy(solucion[1]);
+    or_sched = copy.deepcopy(solucion[2]);
+    fichas = copy.deepcopy(solucion[3]);
+    pacientes, prim, sec = (copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]));
+    scheduled = [p for p in range(len(pacientes)) if pacientes[p] != -1];
+    if not scheduled:
+        return solucion;
+
+    worst_move = None;
+    min_cost   = math.inf;
+    for p in scheduled:
+        blk_old = pacientes[p];
+        o_old, d_old, t_old = decompress(blk_old, nSlot, nDays);
+        if blk_old not in prim or blk_old not in sec:
+            continue;
+        s = prim[blk_old]; a = sec[blk_old]; dur = OT[p];
+        cost_old = dictCosts[(s, a, blk_old)];
+
+        for o_new in range(len(or_sched)):
+            if o_new == o_old:
+                continue;
+            blk_new_start = compress(o_new, d_old, t_old, nSlot, nDays);
+            key_new = (s, a, blk_new_start);
+            if key_new not in dictCosts:
+                continue;
+            cost_new = dictCosts[key_new];
+            if not all(fichas[(s, d_aux)] + cost_old - cost_new >= 0
+                       for d_aux in range(d_old, nDays)):
+                continue;
+            feasible = True;
+            for b in range(dur):
+                if t_old + b >= nSlot or AOR[p][o_new][t_old+b][d_old%5] != 1:
+                    feasible = False; break;
+                blk_check = compress(o_new, d_old, t_old+b, nSlot, nDays);
+                if blk_check in prim or blk_check in sec:
+                    feasible = False; break;
+            if not feasible:
+                continue;
+
+            if cost_new < min_cost:
+                min_cost = cost_new;
+                worst_move = (p,o_old,o_new,d_old,t_old,dur,blk_old,
+                              cost_old,blk_new_start,cost_new,s,a);
+
+    if worst_move is None:
+        if hablar: print("[PeorOR] No feasible worsening move found.");
+        return solucion;
+    (p_sel,o_old,o_new,d,t,dur,blk_old,
+     cost_old,blk_new_start,cost_new,s,a) = worst_move;
+
+    if hablar:
+        print(f"[PeorOR] Moving patient {p_sel} from OR {o_old} to worst OR "
+              f"{o_new} (cost {cost_old}->{cost_new}).");
+    for b in range(dur):
+        blk = blk_old + b; t_b = t + b;
+        prim.pop(blk,None); sec.pop(blk,None);
+        or_sched[o_old][d][t_b] = -1;
+        if surg_sched[s][d][t_b] == p_sel: surg_sched[s][d][t_b] = -1;
+        if surg_sched[a][d][t_b] == p_sel: surg_sched[a][d][t_b] = -1;
+
+    diff = cost_old - cost_new;
+    for d_aux in range(d, nDays):
+        fichas[(s,d_aux)] += diff;
+
+    pacientes[p_sel] = blk_new_start;
+    for b in range(dur):
+        blk = blk_new_start + b; t_b = t + b;
+        prim[blk] = s; sec[blk] = a;
+        or_sched[o_new][d][t_b] = p_sel;
+        surg_sched[s][d][t_b] = p_sel;
+        surg_sched[a][d][t_b] = p_sel;
+
+    return ((pacientes,prim,sec), surg_sched, or_sched, fichas);

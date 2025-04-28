@@ -164,8 +164,8 @@ def AdelantarDia(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nD
                     if not all(surgeon_schedule_copy[a][new_d][new_t + b] == -1 for b in range(dur)):
                         continue;
                     # Si no tiene fichas suficientes, no se considera
-                    if not all(fichas_copy[(s, d_aux)] - dictCosts[(s, a, new_blk)] >= 0 for d_aux in range(new_d, d)):
-                        continue;
+                    if not all(fichas_copy[(s,d_aux)] - dictCosts[(s,a,new_blk)] >= 0 for d_aux in range(new_d, nDays)):
+                        continue
                     for b in range(dur):
                         new_blk = compress(new_o, new_d, new_t + b, nSlot, nDays);
                         if new_blk in primarios_copy or new_blk in secundarios_copy:
@@ -193,8 +193,12 @@ def AdelantarDia(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nD
         or_schedule_copy[o_old][d_old][t_old + b] = -1;
 
     new_start = compress(o_new, d_new, t_new, nSlot, nDays);
-    for d_aux in range(d_new, d_old):
-        fichas_copy[(s, d_aux)] -= dictCosts[(s, a, new_start)];
+    old_cost = dictCosts[(s, a, start_blk_old)]
+    new_cost = dictCosts[(s, a, new_start)]
+    for d_aux in range(d_old, nDays):
+        fichas_copy[(s, d_aux)] += old_cost
+    for d_aux in range(d_new, nDays):
+        fichas_copy[(s, d_aux)] -= new_cost 
     for b in range(dur):
         primarios_copy[new_start + b] = s;
         secundarios_copy[new_start + b] = a;
@@ -308,141 +312,71 @@ def MejorOR(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, 
     return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
 
 def AdelantarTodos(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
-    surgeon_schedule_copy = copy.deepcopy(solucion[1]);
-    or_schedule_copy = copy.deepcopy(solucion[2]);
+    surg_sched = copy.deepcopy(solucion[1]);
+    or_sched = copy.deepcopy(solucion[2]);
     fichas_copy = copy.deepcopy(solucion[3]);
-    pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
-    num_patients = len(pacientes_copy);
-    num_ors = len(or_schedule_copy);
+    pacientes, prim, sec = (copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]));
+    num_ors = len(or_sched);
+    scheduled = [p for p,v in enumerate(pacientes) if v != -1];
+    if not scheduled: return solucion;
 
-    scheduled_patients = [p for p in range(num_patients) if pacientes_copy[p] != -1];
-    if not scheduled_patients:
-        if hablar:
-            print("[AdelantarTodos] No hay pacientes programados.");
-        return solucion
+    for p in scheduled:
+        blk_old = pacientes[p]; o_old,d_old,t_old = decompress(blk_old,nSlot,nDays);
+        if d_old == 0 or blk_old not in prim or blk_old not in sec: continue;
+        s = prim[blk_old]; a = sec[blk_old]; dur = OT[p];
+        old_cost = dictCosts[(s,a,blk_old)];
 
-    patients_processed = set();
-    made_change_overall = False;
-    for p_idx in range(num_patients):
-        if p_idx not in scheduled_patients or p_idx in patients_processed:
-            continue;
-        start_blk_old = pacientes_copy[p_idx];
-        if start_blk_old == -1:
-            continue;
-        try:
-            o_old, d_old, t_old = decompress(start_blk_old, nSlot, nDays);
-        except Exception as e:
-            if hablar:
-                print(f"[AdelantarTodos] Error decompressing block {start_blk_old} for patient {p_idx}: {e}. Skipping patient.");
-            continue
-        if d_old == 0:
-            patients_processed.add(p_idx);
-            continue
-        if start_blk_old not in primarios_copy or start_blk_old not in secundarios_copy:
-            print(f"[AdelantarTodos] Inconsistent state: Block {start_blk_old} for patient {p_idx} not in primarios/secundarios. Skipping.") if hablar else None;
-            patients_processed.add(p_idx);
-            continue
-
-        s = primarios_copy[start_blk_old];
-        a = secundarios_copy[start_blk_old];
-        dur = OT[p_idx];
-
-        best_move_found = None;
-        earliest_day = d_old;
-        earliest_time = nSlot;
-        best_o = -1;
-        best_cost = -1;
-
+        best = None
         for new_d in range(d_old):
-            for new_t in range(nSlot):
-                if new_t + dur > nSlot:
-                    continue;
-                if new_t < nSlot // 2 and (new_t + dur) > nSlot // 2:
-                     continue;
+            for new_t in range(nSlot-dur+1):
+                if new_t < nSlot//2 < new_t+dur: continue
                 for new_o in range(num_ors):
-                    if AOR[p_idx][new_o][new_t][new_d % 5] != 1:
-                        continue;
-                    new_start_blk_check = compress(new_o, new_d, new_t, nSlot, nDays);
-                    cost_key = (s, a, new_start_blk_check);
-                    cost_new = dictCosts[cost_key];
-                    can_afford = True;
-                    for d_check in range(new_d, d_old):
-                        fichas_key = (s, d_check);
-                        if fichas_copy.get(fichas_key, -math.inf) < cost_new:
-                            can_afford = False;
+                    if AOR[p][new_o][new_t][new_d%5] != 1: continue
+                    blk_new = compress(new_o,new_d,new_t,nSlot,nDays)
+                    new_cost = dictCosts[(s,a,blk_new)]
+                    can_afford = True
+                    for d_check in range(new_d, nDays):
+                        if d_check < d_old:
+                            delta = new_cost
+                        else:
+                            delta = new_cost - old_cost
+                        if fichas_copy[(s, d_check)] + (-delta) < 0:
+                            can_afford = False
                             break
                     if not can_afford:
                         continue
-                    surgeons_available = True
-                    if not all(surgeon_schedule_copy[s][new_d][new_t + b] == -1 for b in range(dur)):
-                        surgeons_available = False
-                    if surgeons_available and not all(surgeon_schedule_copy[a][new_d][new_t + b] == -1 for b in range(dur)):
-                        surgeons_available = False
-                    if not surgeons_available:
-                        continue
-                    or_available = True
-                    for b in range(dur):
-                        check_blk = compress(new_o, new_d, new_t + b, nSlot, nDays);
-                        if check_blk in primarios_copy or check_blk in secundarios_copy:
-                             or_available = False;
-                             break
-                        if or_schedule_copy[new_o][new_d][new_t + b] != -1:
-                             or_available = False;
-                             break
-                    if not or_available:
-                        continue
+                    # surgeons free?
+                    if any(surg_sched[s][new_d][new_t+b] != -1 for b in range(dur)): continue
+                    if any(surg_sched[a][new_d][new_t+b] != -1 for b in range(dur)): continue
+                    # OR blocks free?
+                    if any(compress(new_o,new_d,new_t+b,nSlot,nDays) in prim
+                            or compress(new_o,new_d,new_t+b,nSlot,nDays) in sec
+                            or or_sched[new_o][new_d][new_t+b] != -1
+                            for b in range(dur)): continue
+                    if best is None or new_d < best[1] or (new_d==best[1] and new_t < best[2]):
+                        best = (blk_new,new_d,new_t,new_o,new_cost)
+        if best is None: continue
+        blk_new,d_new,t_new,o_new,new_cost = best
+        for b in range(dur):
+            blk=blk_old+b; prim.pop(blk,None); sec.pop(blk,None)
+            or_sched[o_old][d_old][t_old+b] = -1
+            if surg_sched[s][d_old][t_old+b]==p: surg_sched[s][d_old][t_old+b]=-1
+            if surg_sched[a][d_old][t_old+b]==p: surg_sched[a][d_old][t_old+b]=-1
 
-                    if new_d < earliest_day or (new_d == earliest_day and new_t < earliest_time):
-                        earliest_day = new_d;
-                        earliest_time = new_t;
-                        best_o = new_o;
-                        best_cost = cost_new;
-                        best_move_found = (new_o, new_d, new_t, cost_new);
-        if best_move_found is not None:
-            o_new, d_new, t_new, cost_to_update = best_move_found
-            made_change_overall = True
-            for b in range(dur):
-                ob_old = start_blk_old + b
-                primarios_copy.pop(ob_old, None)
-                secundarios_copy.pop(ob_old, None)
+        for d_ in range(d_old,nDays): fichas_copy[(s,d_)] += old_cost
+        for d_ in range(d_new,nDays): fichas_copy[(s,d_)] -= new_cost
 
-                if 0 <= o_old < num_ors and 0 <= d_old < nDays and 0 <= t_old + b < nSlot:
-                    or_schedule_copy[o_old][d_old][t_old + b] = -1
-                if 0 <= s < len(surgeon_schedule_copy) and 0 <= d_old < nDays and 0 <= t_old + b < nSlot:
-                     if surgeon_schedule_copy[s][d_old][t_old + b] == p_idx:
-                         surgeon_schedule_copy[s][d_old][t_old + b] = -1
-                if 0 <= a < len(surgeon_schedule_copy) and 0 <= d_old < nDays and 0 <= t_old + b < nSlot:
-                     if surgeon_schedule_copy[a][d_old][t_old + b] == p_idx:
-                         surgeon_schedule_copy[a][d_old][t_old + b] = -1
+        pacientes[p] = blk_new
+        for b in range(dur):
+            blk=blk_new+b; prim[blk]=s; sec[blk]=a
+            or_sched[o_new][d_new][t_new+b]=p
+            surg_sched[s][d_new][t_new+b]=p
+            surg_sched[a][d_new][t_new+b]=p
 
-            new_start = compress(o_new, d_new, t_new, nSlot, nDays);
-            for d_aux in range(d_new, d_old):
-                 fichas_key_update = (s, d_aux)
-                 if fichas_key_update in fichas_copy:
-                     fichas_copy[fichas_key_update] -= cost_to_update
-                 elif hablar:
-                     print(f"[AdelantarTodos] Warning: Fichas key {fichas_key_update} not found during update for patient {p_idx}.")
+        if hablar:
+            print(f"[AdelantarTodos] p{p} Day {d_old}->{d_new}, OR {o_old}->{o_new}")
 
-
-            pacientes_copy[p_idx] = new_start
-            for b in range(dur):
-                blk_new = new_start + b
-                primarios_copy[blk_new] = s
-                secundarios_copy[blk_new] = a
-
-                if 0 <= o_new < num_ors and 0 <= d_new < nDays and 0 <= t_new + b < nSlot:
-                    or_schedule_copy[o_new][d_new][t_new + b] = p_idx
-                if 0 <= s < len(surgeon_schedule_copy) and 0 <= d_new < nDays and 0 <= t_new + b < nSlot:
-                    surgeon_schedule_copy[s][d_new][t_new + b] = p_idx
-                if 0 <= a < len(surgeon_schedule_copy) and 0 <= d_new < nDays and 0 <= t_new + b < nSlot:
-                    surgeon_schedule_copy[a][d_new][t_new + b] = p_idx
-            if hablar:
-                print(f"[AdelantarTodos] Patient {p_idx} moved from ({o_old},{d_old},{t_old}) to ({o_new},{d_new},{t_new}).");
-        patients_processed.add(p_idx);
-
-    if not made_change_overall and hablar:
-        print("[AdelantarTodos] No patients could be moved to an earlier day.");
-    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
+    return ((pacientes,prim,sec),surg_sched,or_sched,fichas_copy)
 
 def CambiarPaciente1(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
     surgeon_schedule_copy = copy.deepcopy(solucion[1])

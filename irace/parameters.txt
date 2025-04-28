@@ -10,6 +10,9 @@ prob_EliminarPaciente "--prob_EliminarPaciente " r (0.00, 1.00)
 prob_AgregarPaciente_1 "--prob_AgregarPaciente_1 " r (0.00, 1.00)
 prob_AgregarPaciente_2 "--prob_AgregarPaciente_2 " r (0.00, 1.00)
 prob_DestruirAgregar10 "--prob_DestruirAgregar10 " r (0.00, 1.00)
+prob_DestruirAfinidad_Todos "--prob_DestruirAfinidad_Todos " r (0.00, 1.00)
+prob_DestruirAfinidad_Uno "--prob_DestruirAfinidad_Uno " r (0.00, 1.00)
+prob_PeorOR "--prob_PeorOR " r (0.00, 1.00)
 
 prob_MejorarAfinidad_primario "--prob_MejorarAfinidad_primario " r (0.00, 1.00)
 prob_MejorarAfinidad_secundario "--prob_MejorarAfinidad_secundario " r (0.00, 1.00)
@@ -20,6 +23,7 @@ prob_CambiarPaciente1 "--prob_CambiarPaciente1 " r (0.00, 1.00)
 prob_CambiarPaciente2 "--prob_CambiarPaciente2 " r (0.00, 1.00)
 prob_CambiarPaciente3 "--prob_CambiarPaciente3 " r (0.00, 1.00)
 prob_CambiarPaciente4 "--prob_CambiarPaciente4 " r (0.00, 1.00)
+prob_CambiarPaciente5 "--prob_CambiarPaciente5 " r (0.00, 1.00)
 
 destruct_type "--destruct_type " c (0, 1)
 prob_DestruirOR "--prob_DestruirOR " r (0.00, 1.00) | destruct_type == 1
@@ -28,6 +32,7 @@ prob_GRASP "--prob_GRASP " r (0.00, 1.00) | destruct_type == 1
 prob_normal "--prob_normal " r (0.00, 1.00) | destruct_type == 1
 
 prob_Busq "--prob_Busq " r (0.00, 1.00)
+BusqTemp "--BusqTemp " c ("yes", "no")
 
 GRASP_alpha "--GRASP_alpha " r (0.01, 1.00)
 elite_size "--elite_size " i (1, 10)

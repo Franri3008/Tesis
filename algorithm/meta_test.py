@@ -26,7 +26,10 @@ from perturbations import (
     EliminarPaciente,
     AgregarPaciente_1,
     AgregarPaciente_2,
-    DestruirAgregar10
+    DestruirAgregar10,
+    DestruirAfinidad_Todos,
+    DestruirAfinidad_Uno,
+    PeorOR
 )
 
 import localsearches
@@ -40,7 +43,8 @@ from localsearches import (
     CambiarPaciente1,
     CambiarPaciente2,
     CambiarPaciente3,
-    CambiarPaciente4
+    CambiarPaciente4,
+    CambiarPaciente5
 )
 
 import initial_solutions
@@ -477,10 +481,12 @@ def destruir_OR(solution, OT, dictCosts, nSlot, nDays, room, day):
 def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
                   prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
+                  prob_DestruirAfinidad_Todos=0.2, prob_DestruirAfinidad_Uno=0.2, prob_PeorOR=0.2,
                   prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29,
-                  prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, prob_CambiarPaciente3=10, prob_CambiarPaciente4=10,
+                  prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
+                  prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
                   prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
-                  prob_Pert=1, prob_Busq=1, semilla=258, GRASP_alpha=0.1, elite_size=5,
+                  prob_Pert=1, prob_Busq=1, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
                   prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
                   acceptance_criterion="SA"):  
     random.seed(semilla);
@@ -495,11 +501,13 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
     metadata_pert = {"CambiarPrimarios": [0, 0, prob_CambiarPrimarios], "CambiarSecundarios": [0, 0, prob_CambiarSecundarios],
                     "MoverPaciente_bloque": [0, 0, prob_MoverPaciente_bloque], "MoverPaciente_dia": [0, 0, prob_MoverPaciente_dia],
                     "EliminarPaciente": [0, 0, prob_EliminarPaciente], "AgregarPaciente_1": [0, 0, prob_AgregarPaciente_1], "AgregarPaciente_2": [0, 0, prob_AgregarPaciente_2],
-                    "DestruirAgregar10": [0, 0, prob_DestruirAgregar10], "NoOp": [0, 0, 0]};
+                    "DestruirAgregar10": [0, 0, prob_DestruirAgregar10], "DestruirAfinidad_Todos": [0, 0, prob_DestruirAfinidad_Todos], 
+                    "DestruirAfinidad_Uno": [0, 0, prob_DestruirAfinidad_Uno], "PeorOR": [0, 0, prob_PeorOR], "NoOp": [0, 0, 0]};
     metadata_search = {"MejorarAfinidad_primario": [0, 0, prob_MejorarAfinidad_primario], "MejorarAfinidad_secundario": [0, 0, prob_MejorarAfinidad_secundario],
                        "AdelantarDia": [0, 0, prob_AdelantarDia], "MejorOR": [0, 0, prob_MejorOR], "AdelantarTodos": [0, 0, prob_AdelantarTodos], 
                        "CambiarPaciente1": [0, 0, prob_CambiarPaciente1], "CambiarPaciente2": [0, 0, prob_CambiarPaciente2], 
-                       "CambiarPaciente3": [0, 0, prob_CambiarPaciente3], "CambiarPaciente4": [0, 0, prob_CambiarPaciente4], "NoOp": [0, 0, 0]};
+                       "CambiarPaciente3": [0, 0, prob_CambiarPaciente3], "CambiarPaciente4": [0, 0, prob_CambiarPaciente4], 
+                       "CambiarPaciente5": [0, 0, prob_CambiarPaciente5], "NoOp": [0, 0, 0]};
 
     lista_evaluacion = [];
     lista_iteracion = [];
@@ -545,15 +553,27 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
     r = 0;
     d_ = 0;
 
+    if BusqTemp == "yes":
+        BusqTemp = 1;
+    else:
+        BusqTemp = 0;
+
     for i in range(max_iter):
-        if random.uniform(0, 1) < prob_Pert:
+        if random.uniform(0, 1) < prob_Pert * (1 - T/temp_inicial):
             new_sol, last_p = Perturbar(current_sol);
         else:
             new_sol, last_p = copy.deepcopy(current_sol), "NoOp";
-        if random.uniform(0, 1) < prob_Busq:
-            new_sol, last_s = BusquedaLocal(new_sol);
+        if BusqTemp == 0:
+            if random.uniform(0, 1) < prob_Busq:
+                new_sol, last_s = BusquedaLocal(new_sol);
+            else:
+                new_sol, last_s = copy.deepcopy(current_sol), "NoOp";
+        
         else:
-            new_sol, last_s = copy.deepcopy(current_sol), "NoOp";
+            if random.uniform(0, 1) < prob_Busq * (1 - T/temp_inicial):
+                new_sol, last_s = BusquedaLocal(new_sol);
+            else:
+                new_sol, last_s = copy.deepcopy(current_sol), "NoOp";
 
         new_cost = EvalAllORs(new_sol[0], VERSION="C");
         delta = current_cost - new_cost;
@@ -668,6 +688,9 @@ def main():
     parser.add_argument("--prob_AgregarPaciente_1", type=float, default=0.15)
     parser.add_argument("--prob_AgregarPaciente_2", type=float, default=0.15)
     parser.add_argument("--prob_DestruirAgregar10", type=float, default=0.15)
+    parser.add_argument("--prob_DestruirAfinidad_Todos", type=float, default=0.15)
+    parser.add_argument("--prob_DestruirAfinidad_Uno", type=float, default=0.15)
+    parser.add_argument("--prob_PeorOR", type=float, default=0.15)
     parser.add_argument("--prob_MejorarAfinidad_primario", type=float, default=0.15)
     parser.add_argument("--prob_MejorarAfinidad_secundario", type=float, default=0.15)
     parser.add_argument("--prob_AdelantarDia", type=float, default=0.15)
@@ -677,12 +700,14 @@ def main():
     parser.add_argument("--prob_CambiarPaciente2", type=float, default=0.15)
     parser.add_argument("--prob_CambiarPaciente3", type=float, default=0.15)
     parser.add_argument("--prob_CambiarPaciente4", type=float, default=0.15)
+    parser.add_argument("--prob_CambiarPaciente5", type=float, default=0.15)
     parser.add_argument("--destruct_type", type=int, default=1)
     parser.add_argument("--prob_DestruirOR", type=float, default=0.2)
     parser.add_argument("--prob_elite", type=float, default=0.3)
     parser.add_argument("--prob_GRASP", type=float, default=0.3)
     parser.add_argument("--prob_normal", type=float, default=0.2)
     parser.add_argument("--prob_Busq", type=float, default=1.0)
+    parser.add_argument("--BusqTemp", type=str, default="yes")
     parser.add_argument("--GRASP_alpha", type=float, default=0.1)
     parser.add_argument("--elite_size", type=int, default=5)
     parser.add_argument("--prob_GRASP1", type=float, default=0.3)
@@ -707,6 +732,9 @@ def main():
     prob_AgregarPaciente_1       = args.prob_AgregarPaciente_1;
     prob_AgregarPaciente_2       = args.prob_AgregarPaciente_2;
     prob_DestruirAgregar10       = args.prob_DestruirAgregar10;
+    prob_DestruirAfinidad_Todos  = args.prob_DestruirAfinidad_Todos;
+    prob_DestruirAfinidad_Uno    = args.prob_DestruirAfinidad_Uno;
+    prob_PeorOR                  = args.prob_PeorOR;
     prob_MejorarAfinidad_primario= args.prob_MejorarAfinidad_primario;
     prob_MejorarAfinidad_secundario= args.prob_MejorarAfinidad_secundario;
     prob_AdelantarDia            = args.prob_AdelantarDia;
@@ -716,6 +744,7 @@ def main():
     prob_CambiarPaciente2        = args.prob_CambiarPaciente2;
     prob_CambiarPaciente3        = args.prob_CambiarPaciente3;
     prob_CambiarPaciente4        = args.prob_CambiarPaciente4;
+    prob_CambiarPaciente5        = args.prob_CambiarPaciente5;
     destruct_type                = args.destruct_type;
     prob_DestruirOR              = args.prob_DestruirOR;
     prob_elite                   = args.prob_elite;
@@ -723,6 +752,7 @@ def main():
     prob_normal                  = args.prob_normal;
     prob_Pert                    = 1;
     prob_Busq                    = args.prob_Busq;
+    BusqTemp                     = args.BusqTemp;
     GRASP_alpha                  = args.GRASP_alpha;
     elite_size                   = args.elite_size;
     prob_GRASP1                  = args.prob_GRASP1;
@@ -759,14 +789,15 @@ def main():
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
                                             prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
-                                            prob_DestruirAgregar10=prob_DestruirAgregar10,
+                                            prob_DestruirAgregar10=prob_DestruirAgregar10, prob_DestruirAfinidad_Todos=prob_DestruirAfinidad_Todos,
+                                            prob_DestruirAfinidad_Uno=prob_DestruirAfinidad_Uno, prob_PeorOR=prob_PeorOR,
                                             prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
                                             prob_AdelantarDia=prob_AdelantarDia, prob_MejorOR=prob_MejorOR,
                                             prob_AdelantarTodos=prob_AdelantarTodos,
                                             prob_CambiarPaciente1=prob_CambiarPaciente1, prob_CambiarPaciente2=prob_CambiarPaciente2, 
-                                            prob_CambiarPaciente3=prob_CambiarPaciente3, prob_CambiarPaciente4=prob_CambiarPaciente4,
+                                            prob_CambiarPaciente3=prob_CambiarPaciente3, prob_CambiarPaciente4=prob_CambiarPaciente4, prob_CambiarPaciente5=prob_CambiarPaciente5,
                                             prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, prob_normal=prob_normal,
-                                            prob_Pert=prob_Pert, prob_Busq=prob_Busq, semilla=ejec, GRASP_alpha=GRASP_alpha, 
+                                            prob_Pert=prob_Pert, prob_Busq=prob_Busq, BusqTemp=BusqTemp, semilla=ejec, GRASP_alpha=GRASP_alpha, 
                                             elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3,
                                             acceptance_criterion=acceptance_criterion);
         promedio, mejor, prom_gap, mej_gap, tiempo, avg_iter, best_iter, num_sched = meta_test.main() if False else (None,None,None,None,None, None,None,None)
