@@ -5,7 +5,7 @@ importlib.reload(meta_test)
 reproduccion = [""]
 
 NUM_FLAGS = [
-    "--destruct", "--temp_ini", "--alpha",
+    "--destruct","--temp_ini","--alpha",
     "--prob_CambiarPrimarios","--prob_CambiarSecundarios",
     "--prob_MoverPaciente_bloque","--prob_MoverPaciente_dia",
     "--prob_EliminarPaciente","--prob_AgregarPaciente_1","--prob_AgregarPaciente_2",
@@ -16,21 +16,33 @@ NUM_FLAGS = [
     "--prob_CambiarPaciente1","--prob_CambiarPaciente2","--prob_CambiarPaciente3",
     "--prob_CambiarPaciente4","--prob_CambiarPaciente5",
     "--destruct_type","--prob_DestruirOR","--prob_elite","--prob_GRASP","--prob_normal",
-    "--prob_Busq", "--BusqTemp", "--GRASP_alpha","--elite_size",
-    "--prob_GRASP1","--prob_GRASP2","--prob_GRASP3""--acceptance_criterion"
+    "--prob_Busq","--GRASP_alpha","--elite_size",
+    "--prob_GRASP1","--prob_GRASP2","--prob_GRASP3"
 ]
+CAT_FLAGS = ["--BusqTemp","--acceptance_criterion"]
+ALL_FLAGS = NUM_FLAGS + CAT_FLAGS
 
-GROUP_I   = [f for f in NUM_FLAGS if any(kw in f for kw in
-             ["CambiarPrimarios","CambiarSecundarios","MoverPaciente","EliminarPaciente",
-              "AgregarPaciente","DestruirAgregar10","DestruirAfinidad","PeorOR"])]
-GROUP_II  = [f for f in NUM_FLAGS if any(kw in f for kw in
-             ["MejorarAfinidad","AdelantarDia","MejorOR","AdelantarTodos","CambiarPaciente"])]
+DEFAULTS = {f:0             for f in NUM_FLAGS}
+DEFAULTS.update({
+    "--BusqTemp":"no",
+    "--acceptance_criterion":"No"
+})
+
+def parse_line(line:str)->dict:
+    toks = line.split()
+    return {toks[i]:toks[i+1] for i in range(0,len(toks),2)}
+
+parsed = [ {**DEFAULTS, **parse_line(l)} for l in reproduccion ]
+df = pd.DataFrame(parsed)
+df[NUM_FLAGS] = df[NUM_FLAGS].apply(pd.to_numeric, errors="coerce").fillna(0)
+
+GROUP_I = [c for c in NUM_FLAGS if any(k in c for k in
+    ["CambiarPrimarios","CambiarSecundarios","MoverPaciente","EliminarPaciente",
+     "AgregarPaciente","DestruirAgregar10","DestruirAfinidad","PeorOR"])]
+GROUP_II = [c for c in NUM_FLAGS if any(k in c for k in
+    ["MejorarAfinidad","AdelantarDia","MejorOR","AdelantarTodos","CambiarPaciente"])]
 GROUP_III = ["--prob_DestruirOR","--prob_elite","--prob_GRASP","--prob_normal"]
-GROUP_IV  = ["--prob_GRASP1","--prob_GRASP2","--prob_GRASP3"]
-
-def parse_line(line: str):
-    tok = line.split()
-    return {tok[i]: tok[i+1] for i in range(0, len(tok), 2)}
+GROUP_IV = ["--prob_GRASP1","--prob_GRASP2","--prob_GRASP3"]
 
 parsed_rows = [parse_line(l) for l in reproduccion]
 df = pd.DataFrame(parsed_rows).reindex(columns=NUM_FLAGS).fillna(0).astype(float)
@@ -55,7 +67,7 @@ cols_lvl2 = METRIC_NAMES * n_exec
 multi_cols = pd.MultiIndex.from_arrays([cols_lvl1, cols_lvl2])
 
 data_rows = []
-for inst in range(1, 3):
+for inst in range(1, 6):
     fila = []
     for conf_idx, line in enumerate(reproduccion, start=1):
         argv = ["metaheuristic.py",
