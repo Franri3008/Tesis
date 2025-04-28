@@ -891,3 +891,87 @@ def CambiarPaciente4(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot
     pacientes_copy[p_unsched]=start_blk;
 
     return ((pacientes_copy,primarios_copy,secundarios_copy),surgeon_schedule_copy,or_schedule_copy,fichas_copy);
+
+def CambiarPaciente5(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surgeon_schedule_copy=copy.deepcopy(solucion[1]);
+    or_schedule_copy=copy.deepcopy(solucion[2]);
+    fichas_copy=copy.deepcopy(solucion[3]);
+    pacientes_copy=copy.deepcopy(solucion[0][0]);
+    primarios_copy=copy.deepcopy(solucion[0][1]);
+    secundarios_copy=copy.deepcopy(solucion[0][2]);
+    num_patients=len(pacientes_copy);
+    num_ors=len(or_schedule_copy);
+
+    unscheduled=[p for p in range(num_patients) if pacientes_copy[p]==-1 and OT[p]>0];
+    scheduled=[p for p in range(num_patients) if pacientes_copy[p]!=-1 and OT[p]>0];
+    if not unscheduled or not scheduled:
+        return solucion;
+
+    best=None;
+    best_score=-math.inf;
+    for p_u in unscheduled:
+        dur_u=OT[p_u];
+        ratio_u=I[(p_u,0)]/dur_u;
+        for p_s in scheduled:
+            start_blk=pacientes_copy[p_s];
+            if start_blk not in primarios_copy or start_blk not in secundarios_copy:
+                continue;
+            o,d,t=decompress(start_blk,nSlot,nDays);
+            s=primarios_copy[start_blk];
+            a=secundarios_copy[start_blk];
+            dur_s=OT[p_s];
+            if SP[p_u][s]!=1:
+                continue;
+            if t+dur_u>nSlot or (t<nSlot//2 and t+dur_u>nSlot//2):
+                continue;
+            feasible=True;
+            for b in range(dur_u):
+                ct=t+b;
+                if AOR[p_u][o][ct][d%5]!=1: feasible=False;break;
+                if or_schedule_copy[o][d][ct] not in(-1,p_s): feasible=False;break;
+                if surgeon_schedule_copy[s][d][ct] not in(-1,p_s): feasible=False;break;
+                if surgeon_schedule_copy[a][d][ct] not in(-1,p_s): feasible=False;break;
+            if not feasible:
+                continue;
+            cost_key=(s,a,start_blk);
+            if cost_key not in dictCosts:
+                continue;
+            cost_diff=0;
+            fichas_ok=True;
+            for d_aux in range(d,nDays):
+                if fichas_copy.get((s,d_aux),-math.inf)+cost_diff<0:
+                    fichas_ok=False;break;
+            if not fichas_ok:
+                continue;
+            ratio_s=I[(p_s,0)]/dur_s;
+            score=ratio_u-ratio_s;
+            if score>best_score and score>0:
+                best_score=score;
+                best=(p_u,p_s,start_blk,dur_u,dur_s,s,a,cost_diff);
+    if best is None:
+        return solucion;
+
+    p_u,p_s,start_blk,dur_u,dur_s,s_sel,a_sel,cost_diff=best;
+    o,d,t=decompress(start_blk,nSlot,nDays);
+    for d_aux in range(d,nDays):
+        fichas_copy[(s_sel,d_aux)]+=cost_diff;
+    for b in range(dur_s):
+        blk_old=start_blk+b;
+        ct=t+b;
+        or_schedule_copy[o][d][ct]=-1;
+        if surgeon_schedule_copy[s_sel][d][ct]==p_s: surgeon_schedule_copy[s_sel][d][ct]=-1;
+        if surgeon_schedule_copy[a_sel][d][ct]==p_s: surgeon_schedule_copy[a_sel][d][ct]=-1;
+        primarios_copy.pop(blk_old,None);
+        secundarios_copy.pop(blk_old,None);
+    for b in range(dur_u):
+        blk_new=start_blk+b;
+        ct=t+b;
+        or_schedule_copy[o][d][ct]=p_u;
+        surgeon_schedule_copy[s_sel][d][ct]=p_u;
+        surgeon_schedule_copy[a_sel][d][ct]=p_u;
+        primarios_copy[blk_new]=s_sel;
+        secundarios_copy[blk_new]=a_sel;
+    pacientes_copy[p_s]=-1;
+    pacientes_copy[p_u]=start_blk;
+    return((pacientes_copy,primarios_copy,secundarios_copy),surgeon_schedule_copy,or_schedule_copy,fichas_copy);
+
