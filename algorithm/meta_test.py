@@ -655,7 +655,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
             T = temp_inicial;
             d_ = 0;
         current_time = time.time();
-        if current_time - initial_time >= 90:
+        if current_time - initial_time >= 80:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
     

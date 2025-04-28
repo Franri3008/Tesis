@@ -2,8 +2,7 @@ import sys, importlib, pandas as pd
 import meta_test
 importlib.reload(meta_test)
 
-reproduccion = ["--destruct 141 --prob_CambiarPrimarios 0.513 --prob_CambiarSecundarios 0.225 --prob_MoverPaciente_bloque 0.5447 --prob_MoverPaciente_dia 0.1076 --prob_EliminarPaciente 0.7714 --prob_AgregarPaciente_1 0.4093 --prob_AgregarPaciente_2 0.6922 --prob_DestruirAgregar10 0.1629 --prob_MejorarAfinidad_primario 0.3944 --prob_MejorarAfinidad_secundario 0.6671 --prob_AdelantarDia 0.2888 --prob_MejorOR 0.6098 --prob_AdelantarTodos 0.6547 --prob_CambiarPaciente1 0.6994 --prob_CambiarPaciente2 0.4103 --prob_CambiarPaciente3 0.3716 --prob_CambiarPaciente4 0.6298 --destruct_type 1 --prob_DestruirOR 0.4216 --prob_elite 0.5329 --prob_GRASP 0.6782 --prob_normal 0.1133 --prob_Busq 0.894 --GRASP_alpha 0.182 --elite_size 2 --prob_GRASP1 0.8886 --prob_GRASP2 0.1455 --prob_GRASP3 0.2864 --acceptance_criterion No"]
-
+reproduccion = ['--destruct 193 --prob_CambiarPrimarios 0.3465 --prob_CambiarSecundarios 0.303 --prob_MoverPaciente_bloque 0.5731 --prob_MoverPaciente_dia 0.0971 --prob_EliminarPaciente 0.7342 --prob_AgregarPaciente_1 0.4583 --prob_AgregarPaciente_2 0.8911 --prob_DestruirAgregar10 0.0629 --prob_MejorarAfinidad_primario 0.2595 --prob_MejorarAfinidad_secundario 0.3745 --prob_AdelantarDia 0.2255 --prob_MejorOR 0.6648 --prob_AdelantarTodos 0.5087 --prob_CambiarPaciente1 0.6032 --prob_CambiarPaciente2 0.0776 --prob_CambiarPaciente3 0.5125 --prob_CambiarPaciente4 0.7596 --destruct_type 1 --prob_DestruirOR 0.364 --prob_elite 0.4122 --prob_GRASP 0.8552 --prob_normal 0.4001 --prob_Busq 0.9207 --GRASP_alpha 0.3469 --elite_size 3 --prob_GRASP1 0.8474 --prob_GRASP2 0.3635 --prob_GRASP3 0.3885 --acceptance_criterion No']
 NUM_FLAGS = [
     "--destruct","--temp_ini","--alpha",
     "--prob_CambiarPrimarios","--prob_CambiarSecundarios",
@@ -47,7 +46,7 @@ GROUP_IV = ["--prob_GRASP1","--prob_GRASP2","--prob_GRASP3"]
 parsed_rows = [parse_line(l) for l in reproduccion]
 df = pd.DataFrame(parsed_rows).reindex(columns=NUM_FLAGS).fillna(0).astype(float)
 
-def _norm(df, cols):
+def _norm(cols):
     vals = df[cols].values
     totals = vals.sum(axis=1, keepdims=True)
     totals[totals == 0] = 1
@@ -69,7 +68,7 @@ data_rows = []
 for inst in range(1, 6):
     fila = []
     for conf_idx, line in enumerate(reproduccion, start=1):
-        argv = ["metaheuristic.py",
+        argv = ["meta_test.py", "0", "0", "0",
                 f"../irace/instances/instance{inst}.json"]
         argv += line.split()
         sys.argv = argv
