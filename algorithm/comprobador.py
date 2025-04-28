@@ -2,7 +2,7 @@ import sys, importlib, pandas as pd
 import meta_test
 importlib.reload(meta_test)
 
-reproduccion = [""]
+reproduccion = ["--destruct 141 --prob_CambiarPrimarios 0.513 --prob_CambiarSecundarios 0.225 --prob_MoverPaciente_bloque 0.5447 --prob_MoverPaciente_dia 0.1076 --prob_EliminarPaciente 0.7714 --prob_AgregarPaciente_1 0.4093 --prob_AgregarPaciente_2 0.6922 --prob_DestruirAgregar10 0.1629 --prob_MejorarAfinidad_primario 0.3944 --prob_MejorarAfinidad_secundario 0.6671 --prob_AdelantarDia 0.2888 --prob_MejorOR 0.6098 --prob_AdelantarTodos 0.6547 --prob_CambiarPaciente1 0.6994 --prob_CambiarPaciente2 0.4103 --prob_CambiarPaciente3 0.3716 --prob_CambiarPaciente4 0.6298 --destruct_type 1 --prob_DestruirOR 0.4216 --prob_elite 0.5329 --prob_GRASP 0.6782 --prob_normal 0.1133 --prob_Busq 0.894 --GRASP_alpha 0.182 --elite_size 2 --prob_GRASP1 0.8886 --prob_GRASP2 0.1455 --prob_GRASP3 0.2864 --acceptance_criterion No"]
 
 NUM_FLAGS = [
     "--destruct","--temp_ini","--alpha",
@@ -52,9 +52,8 @@ def _norm(df, cols):
     totals = vals.sum(axis=1, keepdims=True)
     totals[totals == 0] = 1
     df[cols] = vals / totals
-for g in (GROUP_I, GROUP_II, GROUP_III, GROUP_IV):
-    df[_norm] = _norm 
-    _norm(df, g)
+for group in (GROUP_I, GROUP_II, GROUP_III, GROUP_IV):
+    _norm(group)
 df_out = (df.T.reset_index()
               .rename(columns={"index": "Parámetro"}))
 
