@@ -9,7 +9,7 @@ NUM_FLAGS = [
     "--prob_MoverPaciente_bloque","--prob_MoverPaciente_dia",
     "--prob_EliminarPaciente","--prob_AgregarPaciente_1","--prob_AgregarPaciente_2",
     "--prob_DestruirAgregar10","--prob_DestruirAfinidad_Todos","--prob_DestruirAfinidad_Uno",
-    "--prob_PeorOR",
+    "--prob_PeorOR", "--prob_AniquilarAfinidad",
     "--prob_MejorarAfinidad_primario","--prob_MejorarAfinidad_secundario",
     "--prob_AdelantarDia","--prob_MejorOR","--prob_AdelantarTodos",
     "--prob_CambiarPaciente1","--prob_CambiarPaciente2","--prob_CambiarPaciente3",
@@ -37,7 +37,7 @@ df[NUM_FLAGS] = df[NUM_FLAGS].apply(pd.to_numeric, errors="coerce").fillna(0)
 
 GROUP_I = [c for c in NUM_FLAGS if any(k in c for k in
     ["CambiarPrimarios","CambiarSecundarios","MoverPaciente","EliminarPaciente",
-     "AgregarPaciente","DestruirAgregar10","DestruirAfinidad","PeorOR"])]
+     "AgregarPaciente","DestruirAgregar10","DestruirAfinidad","PeorOR", "AniquilarAfinidad"])]
 GROUP_II = [c for c in NUM_FLAGS if any(k in c for k in
     ["MejorarAfinidad","AdelantarDia","MejorOR","AdelantarTodos","CambiarPaciente"])]
 GROUP_III = ["--prob_DestruirOR","--prob_elite","--prob_GRASP","--prob_normal"]
@@ -58,27 +58,41 @@ df_out = (df.T.reset_index()
 
 METRIC_NAMES = ["Promedio","Mejor","Promedio_Gap","Mejor_Gap",
                 "Tiempo","AvgIter","BestIter","NumSched"]
-n_exec = len(reproduccion)
 
-cols_lvl1 = [f"Ejec{j+1}" for j in range(n_exec) for _ in METRIC_NAMES]
-cols_lvl2 = METRIC_NAMES * n_exec
+n_exec     = len(reproduccion)
+cols_lvl1  = [f"Ejec{j+1}" for j in range(n_exec) for _ in METRIC_NAMES]
+cols_lvl2  = METRIC_NAMES * n_exec
 multi_cols = pd.MultiIndex.from_arrays([cols_lvl1, cols_lvl2])
 
-data_rows = []
+df_gaps = pd.DataFrame(columns=multi_cols)
+df_gaps.insert(0, ("", ""), []) 
+
+
+def flush_to_excel(df_gaps_partial: pd.DataFrame) -> None:
+    mode = "w" if not os.path.exists("reproduccion.xlsx") else "a"
+
+    with pd.ExcelWriter("reproduccion.xlsx",
+                        engine="openpyxl",
+                        mode=mode,
+                        if_sheet_exists="replace") as w:
+        df_out.to_excel(w, sheet_name="Parámetros",
+                        index=False, float_format="%.4f")
+        df_gaps_partial.to_excel(w, sheet_name="Gaps",
+                                 index=False, float_format="%.4f")
+
+flush_to_excel(df_gaps)
+
 for inst in range(1, 6):
-    fila = []
+    df_gaps.loc[inst-1, ("", "")] = f"Instancia {inst}"
     for conf_idx, line in enumerate(reproduccion, start=1):
         argv = ["meta_test.py", "0", "0", "0",
-                f"../irace/instances/instance{inst}.json"]
-        argv += line.split()
+                f"../irace/instances/instance{inst}.json"] + line.split()
         sys.argv = argv
         print(f"Instancia {inst:02d}  Ejec. {conf_idx:02d}")
-        fila.extend(meta_test.main())
-    data_rows.append(fila)
+        result = meta_test.main()
+        start = (conf_idx - 1) * len(METRIC_NAMES)
+        stop  = start + len(METRIC_NAMES)
+        df_gaps.iloc[inst-1, 1+start : 1+stop] = result
+        flush_to_excel(df_gaps)
 
-df_gaps = pd.DataFrame(data_rows, columns=multi_cols)
-df_gaps.insert(0, ("", ""), [f"Instancia {i}" for i in range(1,16)])
-
-with pd.ExcelWriter("reproduccion.xlsx", engine="xlsxwriter") as w:
-    df_out.to_excel(w, sheet_name="Parámetros", index=False, float_format="%.4f")
-    df_gaps.to_excel(w, sheet_name="Gaps", index=False, float_format="%.4f")
+print("✅ Todo terminado; resultados guardados en 'reproduccion.xlsx'")

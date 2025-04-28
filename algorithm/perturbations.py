@@ -683,8 +683,6 @@ def DestruirAgregar10(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlo
                             break
                     if not can_afford:
                         continue
-
-                    # Found a valid combo for this block
                     main_s = cm
                     chosen_second_s = cand_second
                     chosen_cost = cost_new
@@ -693,13 +691,11 @@ def DestruirAgregar10(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlo
                     chosen_d = d
                     chosen_t = t
                     found_affordable_combo = True
-                    break # Break cm loop
+                    break
 
                 if found_affordable_combo:
                     assignment_found_for_p = True
-                    break # Break start_block loop
-
-            # If a valid assignment was found for p_add, perform it
+                    break
             if assignment_found_for_p:
                 pacientes_copy[p_add] = chosen_start_block
                 for b in range(dur):
@@ -710,8 +706,6 @@ def DestruirAgregar10(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlo
                     surgeon_schedule_copy[main_s][chosen_d][chosen_t + b] = p_add
                     surgeon_schedule_copy[chosen_second_s][chosen_d][chosen_t + b] = p_add
                     or_schedule_copy[chosen_o][chosen_d][chosen_t + b] = p_add
-
-                # Deduct fichas
                 for d_aux in range(chosen_d, nDays):
                     fichas_key_deduct = (main_s, d_aux)
                     if fichas_key_deduct in fichas_copy:
@@ -873,3 +867,52 @@ def PeorOR(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, h
         surg_sched[a][d][t_b] = p_sel;
 
     return ((pacientes,prim,sec), surg_sched, or_sched, fichas);
+
+import random, copy, math
+
+def AniquilarAfinidad(solucion, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays, hablar=False):
+    surg_sched = copy.deepcopy(solucion[1])
+    or_sched = copy.deepcopy(solucion[2])
+    fichas = copy.deepcopy(solucion[3])
+    pacientes, prim, sec = map(copy.deepcopy, solucion[0])
+    unsched = [p for p,v in enumerate(pacientes) if v == -1 and any(SP[p][s] for s in surgeon)]
+    if not unsched: 
+        return solucion
+    p_unsched = random.choice(unsched)
+    compat_surgeons = [s for s in surgeon if SP[p_unsched][s] == 1]
+    cirugia_por_s = {}
+    for blk, s in prim.items():
+        if s in compat_surgeons:
+            p = or_sched[decompress(blk,nSlot,nDays)[0]][decompress(blk,nSlot,nDays)[1]][decompress(blk,nSlot,nDays)[2]]
+            cirugia_por_s.setdefault(s,set()).add(p)
+    if not cirugia_por_s: 
+        return solucion
+    s_sel = random.choice(list(cirugia_por_s.keys()))
+    cambios = False
+    for p in cirugia_por_s[s_sel]:
+        blk_ini = pacientes[p]
+        o,d,t = decompress(blk_ini,nSlot,nDays)
+        dur = OT[p]
+        a_old = sec[blk_ini]
+        mejor_a = a_old
+        mejor_cost = dictCosts[(s_sel,a_old,blk_ini)]
+        for a in second:
+            if a == s_sel: continue
+            if any(surg_sched[a][d][t+b] not in (-1,p) for b in range(dur)): continue
+            cost_new = dictCosts[(s_sel,a,blk_ini)]
+            if cost_new < mejor_cost and all(fichas[(s_sel,d_aux)] - (mejor_cost-cost_new) >= 0 for d_aux in range(d,nDays)):
+                mejor_cost = cost_new
+                mejor_a = a
+        if mejor_a == a_old: continue
+        delta = dictCosts[(s_sel,a_old,blk_ini)] - mejor_cost
+        for d_aux in range(d,nDays):
+            fichas[(s_sel,d_aux)] += delta
+        for b in range(dur):
+            blk = blk_ini + b
+            surg_sched[a_old][d][t+b] = -1
+            surg_sched[mejor_a][d][t+b] = p
+            sec[blk] = mejor_a
+        cambios = True
+    if cambios and hablar:
+        print(f"[AniquilarAfinidad] Cirujano {s_sel}: afinidad de todas sus cirugías degradada.")
+    return ((pacientes, prim, sec), surg_sched, or_sched, fichas)

@@ -30,7 +30,8 @@ from perturbations import (
     DestruirAgregar10,
     DestruirAfinidad_Todos,
     DestruirAfinidad_Uno,
-    PeorOR
+    PeorOR,
+    AniquilarAfinidad
 )
 
 import localsearches
@@ -479,7 +480,7 @@ def destruir_OR(solution, OT, dictCosts, nSlot, nDays, room, day):
 def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
                   prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
-                  prob_DestruirAfinidad_Todos=0.2, prob_DestruirAfinidad_Uno=0.2, prob_PeorOR=0.2,
+                  prob_DestruirAfinidad_Todos=2, prob_DestruirAfinidad_Uno=2, prob_PeorOR=2, prob_AniquilarAfinidad=5,
                   prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29,
                   prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
                   prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
@@ -500,7 +501,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                     "MoverPaciente_bloque": [0, 0, prob_MoverPaciente_bloque], "MoverPaciente_dia": [0, 0, prob_MoverPaciente_dia],
                     "EliminarPaciente": [0, 0, prob_EliminarPaciente], "AgregarPaciente_1": [0, 0, prob_AgregarPaciente_1], "AgregarPaciente_2": [0, 0, prob_AgregarPaciente_2],
                     "DestruirAgregar10": [0, 0, prob_DestruirAgregar10], "DestruirAfinidad_Todos": [0, 0, prob_DestruirAfinidad_Todos], 
-                    "DestruirAfinidad_Uno": [0, 0, prob_DestruirAfinidad_Uno], "PeorOR": [0, 0, prob_PeorOR], "NoOp": [0, 0, 0]};
+                    "DestruirAfinidad_Uno": [0, 0, prob_DestruirAfinidad_Uno], "PeorOR": [0, 0, prob_PeorOR], "NoOp": [0, 0, 0], "AniquilarAfinidad": [0, 0, prob_AniquilarAfinidad]};
     metadata_search = {"MejorarAfinidad_primario": [0, 0, prob_MejorarAfinidad_primario], "MejorarAfinidad_secundario": [0, 0, prob_MejorarAfinidad_secundario],
                        "AdelantarDia": [0, 0, prob_AdelantarDia], "MejorOR": [0, 0, prob_MejorOR], "AdelantarTodos": [0, 0, prob_AdelantarTodos], 
                        "CambiarPaciente1": [0, 0, prob_CambiarPaciente1], "CambiarPaciente2": [0, 0, prob_CambiarPaciente2], 
@@ -680,6 +681,7 @@ def main():
     parser.add_argument("--prob_DestruirAfinidad_Todos", type=float, default=0.15)
     parser.add_argument("--prob_DestruirAfinidad_Uno", type=float, default=0.15)
     parser.add_argument("--prob_PeorOR", type=float, default=0.15)
+    parser.add_argument("--prob_AniquilarAfinidad", type=float, default=0.5)
     parser.add_argument("--prob_MejorarAfinidad_primario", type=float, default=0.15)
     parser.add_argument("--prob_MejorarAfinidad_secundario", type=float, default=0.15)
     parser.add_argument("--prob_AdelantarDia", type=float, default=0.15)
@@ -724,6 +726,7 @@ def main():
     prob_DestruirAfinidad_Todos  = args.prob_DestruirAfinidad_Todos;
     prob_DestruirAfinidad_Uno    = args.prob_DestruirAfinidad_Uno;
     prob_PeorOR                  = args.prob_PeorOR;
+    prob_AniquilarAfinidad       = args.prob_AniquilarAfinidad;
     prob_MejorarAfinidad_primario= args.prob_MejorarAfinidad_primario;
     prob_MejorarAfinidad_secundario= args.prob_MejorarAfinidad_secundario;
     prob_AdelantarDia            = args.prob_AdelantarDia;
@@ -776,7 +779,7 @@ def main():
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
                                             prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
                                             prob_DestruirAgregar10=prob_DestruirAgregar10, prob_DestruirAfinidad_Todos=prob_DestruirAfinidad_Todos,
-                                            prob_DestruirAfinidad_Uno=prob_DestruirAfinidad_Uno, prob_PeorOR=prob_PeorOR,
+                                            prob_DestruirAfinidad_Uno=prob_DestruirAfinidad_Uno, prob_PeorOR=prob_PeorOR, prob_AniquilarAfinidad=prob_AniquilarAfinidad,
                                             prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
                                             prob_AdelantarDia=prob_AdelantarDia, prob_MejorOR=prob_MejorOR,
                                             prob_AdelantarTodos=prob_AdelantarTodos,

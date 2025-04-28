@@ -13,6 +13,7 @@ prob_DestruirAgregar10 "--prob_DestruirAgregar10 " r (0.00, 1.00)
 prob_DestruirAfinidad_Todos "--prob_DestruirAfinidad_Todos " r (0.00, 1.00)
 prob_DestruirAfinidad_Uno "--prob_DestruirAfinidad_Uno " r (0.00, 1.00)
 prob_PeorOR "--prob_PeorOR " r (0.00, 1.00)
+prob_AniquilarAfinidad "--AniquilarAfinidad " r (0.00, 1.00)
 
 prob_MejorarAfinidad_primario "--prob_MejorarAfinidad_primario " r (0.00, 1.00)
 prob_MejorarAfinidad_secundario "--prob_MejorarAfinidad_secundario " r (0.00, 1.00)
