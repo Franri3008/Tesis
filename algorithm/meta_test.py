@@ -33,9 +33,9 @@ from perturbations import (
     AniquilarAfinidad
 )
 
-import localsearches
-importlib.reload(localsearches)
-from localsearches import (
+import algorithm._localsearches as _localsearches
+importlib.reload(_localsearches)
+from algorithm._localsearches import (
     MejorarAfinidad_primario,
     MejorarAfinidad_secundario,
     AdelantarDia,

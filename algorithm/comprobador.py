@@ -1,4 +1,4 @@
-import sys, importlib, pandas as pd
+import sys, importlib, pandas as pd, os
 import meta_test
 importlib.reload(meta_test)
 
@@ -75,18 +75,15 @@ def flush_to_excel(df_gaps_partial: pd.DataFrame) -> None:
                         engine="openpyxl",
                         mode=mode,
                         if_sheet_exists="replace") as w:
-        df_out.to_excel(w, sheet_name="Parámetros",
-                        index=False, float_format="%.4f")
-        df_gaps_partial.to_excel(w, sheet_name="Gaps",
-                                 index=False, float_format="%.4f")
+        df_out.to_excel(w, sheet_name="Parámetros", float_format="%.4f")
+        df_gaps_partial.to_excel(w, sheet_name="Gaps", float_format="%.4f")
 
 flush_to_excel(df_gaps)
 
 for inst in range(1, 6):
     df_gaps.loc[inst-1, ("", "")] = f"Instancia {inst}"
     for conf_idx, line in enumerate(reproduccion, start=1):
-        argv = ["meta_test.py", "0", "0", "0",
-                f"../irace/instances/instance{inst}.json"] + line.split()
+        argv = ["meta_test.py", "0", "0", "0", f"../irace/instances/instance{inst}.json"] + line.split()
         sys.argv = argv
         print(f"Instancia {inst:02d}  Ejec. {conf_idx:02d}")
         result = meta_test.main()
