@@ -37,11 +37,21 @@ cpdef object MejorarAfinidad_primario(object solucion, object surgeon, object se
         
         for s in candidates:
             # Solo si tiene disponibilidad completa:
-            if not all(surgeon_schedule_copy[s][d][t + b] == -1 for b in range(dur)):
-                continue;
+            available = True
+            for b in range(dur):
+                if surgeon_schedule_copy[s][d][t + b] != -1:
+                    available = False
+                    break
+            if not available:
+                continue
             # Si no tiene fichas suficientes, no se considera
-            if not all(fichas_copy[(s, d_aux)] - dictCosts[(s, a_sel, pacientes_copy[p_sel])] >= 0 for d_aux in range(d, nDays)):
-                continue;
+            fichas_ok = True
+            for d_aux in range(d, nDays):
+                if fichas_copy[(s, d_aux)] - dictCosts[(s, a_sel, pacientes_copy[p_sel])] < 0:
+                    fichas_ok = False
+                    break
+            if not fichas_ok:
+                continue
             # Si no hay mejora, no se considera
             mejora = dictCosts[(s, a_sel, pacientes_copy[p_sel])] - dictCosts[s_sel, a_sel, pacientes_copy[p_sel]];
             if mejora <= 0:
@@ -95,11 +105,21 @@ cpdef object MejorarAfinidad_secundario(object solucion, object surgeon, object 
         candidates = [a for a in second if a != a_sel];
         for a in candidates:
             # Solo si tiene disponibilidad completa:
-            if not all(surgeon_schedule_copy[a][d][t + b] == -1 for b in range(dur)):
-                continue;
+            available = True
+            for b in range(dur):
+                if surgeon_schedule_copy[a][d][t + b] != -1:
+                    available = False
+                    break
+            if not available:
+                continue
             # Si no tiene fichas suficientes, no se considera
-            if not all(fichas_copy[(s_sel, d_aux)] - dictCosts[(s_sel, a, pacientes_copy[p_sel])] >= 0 for d_aux in range(d, nDays)):
-                continue;
+f           ichas_ok = True
+            for d_aux in range(d, nDays):
+                if fichas_copy[(s_sel, d_aux)] - dictCosts[(s_sel, a, pacientes_copy[p_sel])] < 0:
+                    fichas_ok = False
+                    break
+            if not fichas_ok:
+                continue
             # Si no hay mejora, no se considera
             mejora = dictCosts[(s_sel, a, pacientes_copy[p_sel])] - dictCosts[s_sel, a_sel, pacientes_copy[p_sel]];
             if mejora <= 0:
@@ -159,13 +179,28 @@ cpdef object AdelantarDia(object solucion, object surgeon, object second, object
                         continue;
                     can_move = True;
                     # Solo si cirujanos tienen disponibilidad completa:
-                    if not all(surgeon_schedule_copy[s][new_d][new_t + b] == -1 for b in range(dur)):
-                        continue;
-                    if not all(surgeon_schedule_copy[a][new_d][new_t + b] == -1 for b in range(dur)):
-                        continue;
+                    main_free = True
+                    for b in range(dur):
+                        if surgeon_schedule_copy[s][new_d][new_t + b] != -1:
+                            main_free = False
+                            break
+                    if not main_free:
+                        continue
+                    second_free = True
+                    for b in range(dur):
+                        if surgeon_schedule_copy[a][new_d][new_t + b] != -1:
+                            second_free = False
+                            break
+                    if not second_free:
+                        continue
                     # Si no tiene fichas suficientes, no se considera
-                    if not all(fichas_copy[(s, d_aux)] - dictCosts[(s, a, new_blk)] >= 0 for d_aux in range(new_d, d)):
-                        continue;
+                    fichas_ok = True
+                    for d_aux in range(new_d, d):
+                        if fichas_copy[(s, d_aux)] - dictCosts[(s, a, new_blk)] < 0:
+                            fichas_ok = False
+                            break
+                    if not fichas_ok:
+                        continue
                     for b in range(dur):
                         new_blk = compress(new_o, new_d, new_t + b, nSlot, nDays);
                         if new_blk in primarios_copy or new_blk in secundarios_copy:
@@ -247,8 +282,14 @@ cpdef object MejorOR(object solucion, object surgeon, object second, object OT, 
             if new_cost_key not in dictCosts:
                 continue # Cannot evaluate if cost is undefined
             new_cost = dictCosts[new_cost_key]
-            if not all(fichas_copy[(s, d_aux)] + dictCosts[(s, a, start_blk_old)] - dictCosts[(s, a, new_start)] >= 0 for d_aux in range(d_old, nDays)) or fichas_copy[(s, d_old)] + current_cost < new_cost:
-                continue;
+            fichas_ok = True
+            for d_aux in range(d_old, nDays):
+                if (fichas_copy[(s, d_aux)] + dictCosts[(s, a, start_blk_old)] - dictCosts[(s, a, new_start)]) < 0:
+                    fichas_ok = False
+                    break
+            if (not fichas_ok) or \
+               (fichas_copy[(s, d_old)] + current_cost < new_cost):
+                continue
             can_move = True
             for b in range(dur):
                 if t_old + b >= nSlot or AOR[p][o_new][t_old + b][d_old%5] != 1:
@@ -374,10 +415,17 @@ cpdef object AdelantarTodos(object solucion, object surgeon, object second, obje
                     if not can_afford:
                         continue
                     surgeons_available = True
-                    if not all(surgeon_schedule_copy[s][new_d][new_t + b] == -1 for b in range(dur)):
-                        surgeons_available = False
-                    if surgeons_available and not all(surgeon_schedule_copy[a][new_d][new_t + b] == -1 for b in range(dur)):
-                        surgeons_available = False
+                    for b in range(dur):
+                        if surgeon_schedule_copy[s][new_d][new_t + b] != -1:
+                            surgeons_available = False
+                            break
+                    if surgeons_available:     # comprobar secundario
+                        for b in range(dur):
+                            if surgeon_schedule_copy[a][new_d][new_t + b] != -1:
+                                surgeons_available = False
+                                break
+                    if not surgeons_available:
+                        continue
                     if not surgeons_available:
                         continue
                     or_available = True
