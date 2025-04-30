@@ -33,7 +33,7 @@ prob_GRASP "--prob_GRASP " r (0.00, 1.00) | destruct_type == 1
 prob_normal "--prob_normal " r (0.00, 1.00) | destruct_type == 1
 
 prob_Busq "--prob_Busq " r (0.00, 1.00)
-BusqTemp "--BusqTemp " c ("yes", "no")
+BusqTemp "--BusqTemp " c ("yes", "no") | acceptance_criterion == "SA"
 
 GRASP_alpha "--GRASP_alpha " r (0.01, 1.00)
 elite_size "--elite_size " i (1, 10)
