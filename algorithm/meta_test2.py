@@ -479,7 +479,7 @@ def destruir_OR(solution, OT, dictCosts, nSlot, nDays, room, day):
         pacientes[p] = -1
     return ((pacientes, primarios, secundarios), surgeon_schedule, or_schedule, fichas)
 
-def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
+def metaheuristic(inicial, report_secs=[30], destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
                   prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
                   prob_DestruirAfinidad_Todos=2, prob_DestruirAfinidad_Uno=2, prob_PeorOR=2, prob_AniquilarAfinidad=5,
@@ -492,6 +492,8 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                   acceptance_criterion="SA"):  
     random.seed(semilla);
     initial_time = time.time();
+    report_secs_sorted = sorted(report_secs)
+    next_report_idx = 0
 
     initial_sol = inicial[0];
     surgeon_schedule = inicial[1];
@@ -559,7 +561,9 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
     else:
         BusqTemp = 0;
 
-    for i in range(max_iter):
+    i = 0
+    while True:
+        i += 1
         if random.uniform(0, 1) < prob_Pert * (1 - T/temp_inicial):
             new_sol, last_p = Perturbar(current_sol);
         else:
@@ -636,7 +640,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
             raise ValueError(f"Unknown acceptance criterion: {acceptance_criterion}");
 
         T *= alpha;
-        if d_ >= destruct and destruct_type != 0:
+        if d_ >= destruct and destruct_type != 0: 
             mejores_sols.append(copy.deepcopy(current_sol));
             probab = random.choices([1, 2, 3, 4], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal])[0];
             if probab == 1:
@@ -656,11 +660,15 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
             T = temp_inicial;
             d_ = 0;
         current_time = time.time();
-        if current_time - initial_time >= 30:
+        elapsed = current_time - initial_time
+        if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
+            print(f"[{elapsed/60:.1f} min] best_cost = {best_cost}")
+            next_report_idx += 1
+        if current_time - initial_time >= 300:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
     
-    total_iters = i + 1
+    total_iters = i;
     pacientes_best = best_solution[0][0]
     num_sched = sum(1 for p in pacientes_best if p != -1)
     mejores_sols.append(best_solution);
@@ -716,6 +724,7 @@ def main():
     parser.add_argument("--prob_GRASP2", type=float, default=0.3)
     parser.add_argument("--prob_GRASP3", type=float, default=0.4)
     parser.add_argument("--acceptance_criterion", type=str, default="SA")
+    parser.add_argument("--report_minutes", type=str, default="")
 
     args = parser.parse_args()
 
@@ -762,9 +771,13 @@ def main():
     prob_GRASP2                  = args.prob_GRASP2;
     prob_GRASP3                  = args.prob_GRASP3;
     acceptance_criterion         = args.acceptance_criterion;
+    if args.report_minutes.strip():
+        report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
+    else:
+        report_secs = []
 
     random.seed(seed);
-    max_iter = 125000;
+    #max_iter = 125000;
 
     with open(instance_file, 'r') as f:
         data = json.load(f);
@@ -788,7 +801,7 @@ def main():
     all_best_iters= [];
     all_num_sched = [];
     for ejec in range(3):
-        best_solution, stats = metaheuristic(inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
+        best_solution, stats = metaheuristic(inicial, report_secs=report_secs, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
                                             prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,

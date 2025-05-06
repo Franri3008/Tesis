@@ -21,11 +21,10 @@ NUM_FLAGS = [
 CAT_FLAGS = ["--BusqTemp","--acceptance_criterion"]
 ALL_FLAGS = NUM_FLAGS + CAT_FLAGS
 
-DEFAULTS = {f:0             for f in NUM_FLAGS}
+DEFAULTS = {f:0 for f in NUM_FLAGS}
 DEFAULTS.update({
-    "--BusqTemp":"no",
-    "--acceptance_criterion":"No"
-})
+    "--BusqTemp":"yes",
+    "--acceptance_criterion":"SA"})
 
 def parse_line(line:str)->dict:
     toks = line.split()
