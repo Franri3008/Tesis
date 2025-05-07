@@ -174,18 +174,37 @@ def weighted_choice(items,weights):
         upto+=w
         if upto>=r: return items[i]
 
-def ils(initial_solution,iterations,pert_probs,ls_probs,seed):
+def ils(initial_solution, pert_probs, ls_probs, seed, report_secs, iterations=None):
     random.seed(seed)
     best=copy.deepcopy(initial_solution); best_cost=EvalAllORs(best[0],VERSION="C")
-    for _ in range(iterations):
-        base=copy.deepcopy(best)
-        pert_fn=weighted_choice(PERTURBATIONS,pert_probs)
-        cand=pert_fn(base,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays)
-        ls_fn=weighted_choice(LOCAL_SEARCHES,ls_probs)
-        cand=ls_fn(cand,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays)
-        c_cost=EvalAllORs(cand[0],VERSION="C")
-        if c_cost<best_cost:
-            best=copy.deepcopy(cand); best_cost=c_cost
+    initial_time = time.time()
+    report_secs_sorted = sorted(report_secs)
+    next_report_idx = 0
+    it = 0
+
+    while True:
+        it += 1
+        base = copy.deepcopy(best)
+        pert_fn = weighted_choice(PERTURBATIONS, pert_probs)
+        cand = pert_fn(base, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays)
+        ls_fn = weighted_choice(LOCAL_SEARCHES, ls_probs)
+        cand = ls_fn(cand, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays)
+
+
+        c_cost = EvalAllORs(cand[0], VERSION="C")
+        if c_cost < best_cost:
+            best = copy.deepcopy(cand)
+            best_cost = c_cost
+
+        elapsed = time.time() - initial_time
+        if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
+            print(f"[{elapsed/60:.1f} min]  best_cost = {best_cost}")
+            next_report_idx += 1
+
+        if next_report_idx >= len(report_secs_sorted):
+            break
+        if iterations is not None and len(report_secs_sorted) == 0 and it >= iterations:
+            break
     return best
 
 def main():
@@ -201,7 +220,12 @@ def main():
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]:
         parser.add_argument(f"--prob_{s}",type=float,default=10.0)
+    parser.add_argument("--report_minutes", type=str, default="");
     args=parser.parse_args()
+    if args.report_minutes.strip():
+        report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
+    else:
+        report_secs = []
     with open(args.instance_file,'r') as f: data=json.load(f)
     global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot
     typePatients=data["patients"]; nPatients=int(data["n_patients"]); nDays=int(data["days"])
@@ -216,7 +240,7 @@ def main():
     ls_probs=[getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]]
-    best=ils(initial,args.iterations,pert_probs,ls_probs,args.seed)
+    best = ils(initial, pert_probs, ls_probs, args.seed, report_secs=report_secs, iterations=None)
     print(EvalAllORs(best[0],VERSION="C"))
 
 if __name__=="__main__":
