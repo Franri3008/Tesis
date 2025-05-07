@@ -636,7 +636,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
             raise ValueError(f"Unknown acceptance criterion: {acceptance_criterion}");
 
         T *= alpha;
-        if d_ >= destruct and destruct_type != 0:
+        if d_ >= destruct and destruct_type != 0: 
             mejores_sols.append(copy.deepcopy(current_sol));
             probab = random.choices([1, 2, 3, 4], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal])[0];
             if probab == 1:

@@ -664,7 +664,7 @@ def metaheuristic(inicial, report_secs=[30], destruct_type=1, destruct=200, temp
         if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
             print(f"[{elapsed/60:.1f} min] best_cost = {best_cost}")
             next_report_idx += 1
-        if current_time - initial_time >= 300:
+        if current_time - initial_time >= 30000:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
     
@@ -800,7 +800,7 @@ def main():
     all_iters     = [];
     all_best_iters= [];
     all_num_sched = [];
-    for ejec in range(3):
+    for ejec in range(10):
         best_solution, stats = metaheuristic(inicial, report_secs=report_secs, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
                                             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
                                             prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
