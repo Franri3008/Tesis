@@ -15,6 +15,34 @@ import copy
 import math
 import importlib
 import argparse
+from pathlib import Path
+
+class CSVMetaCheckpoint:
+    def __init__(self, secs, csv_path, instance):
+        self.secs       = sorted(secs)
+        self.targetfile = Path(csv_path)
+        self.instance   = instance
+        self.next_idx   = 0
+        self.first      = not self.targetfile.exists()
+        self.targetfile.parent.mkdir(parents=True, exist_ok=True)
+
+    def notify(self, elapsed, best_cost):
+        if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
+            return
+        row = {
+            "instance": self.instance,
+            "time": elapsed,
+            "best_cost": best_cost
+        }
+        import pandas as pd
+        pd.DataFrame([row]).to_csv(
+            self.targetfile,
+            mode='a',
+            index=False,
+            header=self.first
+        )
+        self.first    = False
+        self.next_idx += 1
 
 import perturbations
 importlib.reload(perturbations)
@@ -55,12 +83,8 @@ from initial_solutions import (
     GRASP
 )
 
-# ------------------------------------------------------------------------------------
-# GLOBAL FLAGS OR CONSTANTS
-# ------------------------------------------------------------------------------------
 testing = False
 parametroFichas = 0.11
-entrada = "etapa1"
 version = "C"
 solucion_inicial = True
 warnings.filterwarnings("ignore")
@@ -479,7 +503,7 @@ def destruir_OR(solution, OT, dictCosts, nSlot, nDays, room, day):
         pacientes[p] = -1
     return ((pacientes, primarios, secundarios), surgeon_schedule, or_schedule, fichas)
 
-def metaheuristic(inicial, report_secs=[30], destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
+def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
                   prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
                   prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
                   prob_DestruirAfinidad_Todos=2, prob_DestruirAfinidad_Uno=2, prob_PeorOR=2, prob_AniquilarAfinidad=5,
@@ -492,7 +516,8 @@ def metaheuristic(inicial, report_secs=[30], destruct_type=1, destruct=200, temp
                   acceptance_criterion="SA"):  
     random.seed(semilla);
     initial_time = time.time();
-    report_secs_sorted = sorted(report_secs)
+    report_secs_sorted = sorted(report_secs);
+    last_report = report_secs_sorted[-1];
     next_report_idx = 0
 
     initial_sol = inicial[0];
@@ -662,9 +687,12 @@ def metaheuristic(inicial, report_secs=[30], destruct_type=1, destruct=200, temp
         current_time = time.time();
         elapsed = current_time - initial_time
         if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
-            print(f"[{elapsed/60:.1f} min] best_cost = {best_cost}")
+            if listener:
+                listener.notify(elapsed, best_cost)
+            else:
+                print(f"[{elapsed/60:.1f} min] best_cost = {best_cost}")
             next_report_idx += 1
-        if current_time - initial_time >= 30000:
+        if current_time - initial_time >= last_report:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
     
@@ -800,22 +828,54 @@ def main():
     all_iters     = [];
     all_best_iters= [];
     all_num_sched = [];
-    for ejec in range(10):
-        best_solution, stats = metaheuristic(inicial, report_secs=report_secs, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
-                                            prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
-                                            prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
-                                            prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
-                                            prob_DestruirAgregar10=prob_DestruirAgregar10, prob_DestruirAfinidad_Todos=prob_DestruirAfinidad_Todos,
-                                            prob_DestruirAfinidad_Uno=prob_DestruirAfinidad_Uno, prob_PeorOR=prob_PeorOR, prob_AniquilarAfinidad=prob_AniquilarAfinidad,
-                                            prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
-                                            prob_AdelantarDia=prob_AdelantarDia, prob_MejorOR=prob_MejorOR,
-                                            prob_AdelantarTodos=prob_AdelantarTodos,
-                                            prob_CambiarPaciente1=prob_CambiarPaciente1, prob_CambiarPaciente2=prob_CambiarPaciente2, 
-                                            prob_CambiarPaciente3=prob_CambiarPaciente3, prob_CambiarPaciente4=prob_CambiarPaciente4, prob_CambiarPaciente5=prob_CambiarPaciente5,
-                                            prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, prob_normal=prob_normal,
-                                            prob_Pert=prob_Pert, prob_Busq=prob_Busq, BusqTemp=BusqTemp, semilla=ejec, GRASP_alpha=GRASP_alpha, 
-                                            elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3,
-                                            acceptance_criterion=acceptance_criterion);
+    # prepare CSV checkpoint listener
+    listener = CSVMetaCheckpoint(report_secs, "metaheuristic_checkpoints.csv", instance_file)
+    for ejec in range(2):
+        best_solution, stats = metaheuristic(
+            inicial,
+            report_secs=report_secs,
+            listener=listener,
+            destruct_type=destruct_type,
+            destruct=destruct,
+            temp_inicial=temp_inicial,
+            alpha=alpha,
+            prob_CambiarPrimarios=prob_CambiarPrimarios,
+            prob_CambiarSecundarios=prob_CambiarSecundarios,
+            prob_MoverPaciente_bloque=prob_MoverPaciente_bloque,
+            prob_MoverPaciente_dia=prob_MoverPaciente_dia,
+            prob_EliminarPaciente=prob_EliminarPaciente,
+            prob_AgregarPaciente_1=prob_AgregarPaciente_1,
+            prob_AgregarPaciente_2=prob_AgregarPaciente_2,
+            prob_DestruirAgregar10=prob_DestruirAgregar10,
+            prob_DestruirAfinidad_Todos=prob_DestruirAfinidad_Todos,
+            prob_DestruirAfinidad_Uno=prob_DestruirAfinidad_Uno,
+            prob_PeorOR=prob_PeorOR,
+            prob_AniquilarAfinidad=prob_AniquilarAfinidad,
+            prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario,
+            prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
+            prob_AdelantarDia=prob_AdelantarDia,
+            prob_MejorOR=prob_MejorOR,
+            prob_AdelantarTodos=prob_AdelantarTodos,
+            prob_CambiarPaciente1=prob_CambiarPaciente1,
+            prob_CambiarPaciente2=prob_CambiarPaciente2,
+            prob_CambiarPaciente3=prob_CambiarPaciente3,
+            prob_CambiarPaciente4=prob_CambiarPaciente4,
+            prob_CambiarPaciente5=prob_CambiarPaciente5,
+            prob_DestruirOR=prob_DestruirOR,
+            prob_elite=prob_elite,
+            prob_GRASP=prob_GRASP,
+            prob_normal=prob_normal,
+            prob_Pert=prob_Pert,
+            prob_Busq=prob_Busq,
+            BusqTemp=BusqTemp,
+            semilla=ejec,
+            GRASP_alpha=GRASP_alpha,
+            elite_size=elite_size,
+            prob_GRASP1=prob_GRASP1,
+            prob_GRASP2=prob_GRASP2,
+            prob_GRASP3=prob_GRASP3,
+            acceptance_criterion=acceptance_criterion
+        );
         promedio, mejor, prom_gap, mej_gap, tiempo, avg_iter, best_iter, num_sched = meta_test.main() if False else (None,None,None,None,None, None,None,None)
         _,_,_,_, avg_iter, best_iter, num_sched = stats
         solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
