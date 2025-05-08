@@ -32,7 +32,7 @@ class CSVMetaCheckpoint:
         row = {
             "instance": self.instance,
             "time": elapsed,
-            "best_cost": best_cost
+            "gap": best_cost
         }
         import pandas as pd
         pd.DataFrame([row]).to_csv(
@@ -687,10 +687,11 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
         current_time = time.time();
         elapsed = current_time - initial_time
         if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
+            gap = 1 - (-best_cost) / bks
             if listener:
-                listener.notify(elapsed, best_cost)
+                listener.notify(elapsed, gap)
             else:
-                print(f"[{elapsed/60:.1f} min] best_cost = {best_cost}")
+                print(f"[{elapsed/60:.1f} min] gap = {gap}")
             next_report_idx += 1
         if current_time - initial_time >= last_report:
             mejores_sols.append(copy.deepcopy(current_sol));

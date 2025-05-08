@@ -1,0 +1,4 @@
+instance,time,best_cost
+../irace/instances/instance1.json,30.000701904296875,0.12101156683566594
+../irace/instances/instance1.json,60.000590085983276,0.12101156683566594
+../irace/instances/instance1.json,120.00018191337585,0.12101156683566594

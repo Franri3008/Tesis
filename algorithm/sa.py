@@ -1,5 +1,26 @@
 #!/usr/bin/env python3
 import sys, warnings, json, pandas as pd, random, numpy as np, time, copy, math, importlib, argparse
+from pathlib import Path
+class CSVCheckpoint:
+    def __init__(self, secs, csv_path, instance):
+        self.secs = sorted(secs)
+        self.targetfile = Path(csv_path)
+        self.instance = instance
+        self.next_idx = 0
+        self.first = not self.targetfile.exists()
+        self.targetfile.parent.mkdir(parents=True, exist_ok=True)
+    def notify(self, elapsed, gap):
+        if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
+            return
+        import pandas as pd
+        pd.DataFrame([{"instance": self.instance, "time": elapsed, "gap": gap}]).to_csv(
+            self.targetfile,
+            mode="a",
+            index=False,
+            header=self.first
+        )
+        self.first = False
+        self.next_idx += 1
 warnings.filterwarnings("ignore")
 
 import perturbations
@@ -363,7 +384,8 @@ def weighted_choice(items,weights):
         upto+=w
         if upto>=r: return items[i]
 
-def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report_secs, iterations=None):
+def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report_secs,
+       time_limit, listener=None, iterations=None):
     random.seed(seed)
     current=copy.deepcopy(initial_solution); 
     current_cost=EvalAllORs(current[0],"C")
@@ -376,25 +398,29 @@ def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report
     it=0
     while True:
         it+=1
-        neighbour=copy.deepcopy(current)
-        neighbour=weighted_choice(PERTURBATIONS,pert_probs)(neighbour,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays)
-        neighbour=weighted_choice(LOCAL_SEARCHES,ls_probs)(neighbour,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays)
-        neigh_cost=EvalAllORs(neighbour[0],"C")
+        neighbour = copy.deepcopy(current)
+        neighbour = weighted_choice(PERTURBATIONS,pert_probs)(neighbour,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays)
+        neighbour = weighted_choice(LOCAL_SEARCHES,ls_probs)(neighbour,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays)
+        neigh_cost = EvalAllORs(neighbour[0],"C")
         if neigh_cost-current_cost<0 or random.random()<math.exp(-(neigh_cost-current_cost)/temp):
             current, current_cost=copy.deepcopy(neighbour), neigh_cost
             if neigh_cost<best_cost:
                 best, best_cost=copy.deepcopy(neighbour), neigh_cost
         temp *= alpha
         elapsed = time.time()-init_time
+        if elapsed >= time_limit:
+            break
         if nxt<len(rep) and elapsed>=rep[nxt]:
-            print(f"[{elapsed/60:.1f} min] best_cost = {best_cost}")
+            gap = best_cost
+            if listener:
+                listener.notify(elapsed, gap)
+            else:
+                print(f"[{elapsed/60:.1f} min] gap = {gap}")
             nxt+=1
         if nxt>=len(rep): 
             break
-        if iterations is not None and not rep and it>=iterations: 
-            break
-        if temp<1e-6: 
-            break
+        if temp < 1e-6:
+            temp = temp_inicial
     return best
 
 def main():
@@ -429,7 +455,17 @@ def main():
     ls_probs=[getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]]
-    best=sa(initial,args.temp_inicial,args.alpha,pert_probs,ls_probs,args.seed, report_secs=report_secs, iterations=args.iterations if not report_secs else None)
+    checkpoint_listener = CSVCheckpoint(report_secs, "sa_checkpoints.csv", args.instance_file)
+    best = sa(initial,
+              args.temp_inicial,
+              args.alpha,
+              pert_probs,
+              ls_probs,
+              args.seed,
+              report_secs=report_secs,
+              time_limit=time_limit,
+              listener=checkpoint_listener,
+              iterations=args.iterations if not report_secs else None)
     print(EvalAllORs(best[0],"C"))
 
 if __name__=="__main__":
