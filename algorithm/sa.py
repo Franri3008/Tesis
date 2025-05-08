@@ -77,9 +77,13 @@ def EvalAllORs(sol, VERSION="C"):
                 puntaje-=fichas[s_idx][d_idx]*mult(d_idx)
     return 1-(puntaje/bks)
 
-def compress(o,d,t): return o*nSlot*nDays+d*nSlot+t
+def compress(o,d,t): 
+    return o*nSlot*nDays+d*nSlot+t
 def decompress(val):
-    o=val//(nSlot*nDays); temp=val%(nSlot*nDays); d=temp//nSlot; t=temp%nSlot
+    o=val//(nSlot*nDays); 
+    temp=val%(nSlot*nDays); 
+    d=temp//nSlot; 
+    t=temp%nSlot
     return o,d,t
 def WhichExtra(o,t,d,e): return int(extras[o][t][d%5][e])
 
@@ -361,10 +365,15 @@ def weighted_choice(items,weights):
 
 def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report_secs, iterations=None):
     random.seed(seed)
-    current=copy.deepcopy(initial_solution); current_cost=EvalAllORs(current[0],"C")
-    best = copy.deepcopy(current); best_cost=current_cost
+    current=copy.deepcopy(initial_solution); 
+    current_cost=EvalAllORs(current[0],"C")
+    best = copy.deepcopy(current); 
+    best_cost=current_cost
     temp = temp_inicial
-    init_time = time.time(); rep=sorted(report_secs); nxt=0; it=0
+    init_time = time.time(); 
+    rep=sorted(report_secs); 
+    nxt=0; 
+    it=0
     while True:
         it+=1
         neighbour=copy.deepcopy(current)
