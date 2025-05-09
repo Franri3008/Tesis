@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 import sys
 import warnings
@@ -12,6 +14,11 @@ import math
 import importlib
 import argparse
 from pathlib import Path
+from collections import deque
+
+testing = False;
+parametroFichas = 0.11;
+version = "C";
 
 import perturbations
 importlib.reload(perturbations)
@@ -31,7 +38,7 @@ from _localsearches import (
 
 import initial_solutions
 importlib.reload(initial_solutions)
-from initial_solutions import normal,GRASP
+from initial_solutions import GRASP
 
 class CSVCheckpoint:
     def __init__(self,secs,csv_path,instance):
@@ -50,11 +57,6 @@ class CSVCheckpoint:
         self.first=False;
         self.next_idx+=1;
 
-testing=False;
-parametroFichas=0.11;
-version="C";
-warnings.filterwarnings("ignore");
-
 PERTURBATIONS=[
     CambiarPrimarios,CambiarSecundarios,MoverPaciente_bloque,MoverPaciente_dia,
     EliminarPaciente,AgregarPaciente_1,AgregarPaciente_2,DestruirAgregar10,
@@ -66,6 +68,17 @@ LOCAL_SEARCHES=[
     AdelantarTodos,CambiarPaciente1,CambiarPaciente2,CambiarPaciente3,
     CambiarPaciente4,CambiarPaciente5
 ];
+
+def compress(o,d,t):return o*nSlot*nDays+d*nSlot+t;
+def decompress(val):
+    o=val//(nSlot*nDays);
+    temp=val%(nSlot*nDays);
+    d=temp//nSlot;
+    t=temp%nSlot;
+    return o,d,t;
+
+def WhichExtra(o,t,d,e): 
+    return int(extras[o][t][d%5][e]);
 
 def EvalAllORs(sol,VERSION="C"):
     fichas=[[nFichas*(d+1) for d in range(len(day))] for s in surgeon];
@@ -107,17 +120,6 @@ def EvalAllORs(sol,VERSION="C"):
             for d_idx in range(nDays):
                 puntaje-=fichas[s_idx][d_idx]*multiplicador(d_idx);
     return 1-(puntaje/bks);
-
-def compress(o,d,t): 
-    return o*nSlot*nDays+d*nSlot+t
-def decompress(val):
-    o=val//(nSlot*nDays); 
-    temp=val%(nSlot*nDays); 
-    d=temp//nSlot; 
-    t=temp%nSlot
-    return o,d,t
-def WhichExtra(o,t,d,e): 
-    return int(extras[o][t][d%5][e])
 
 def load_data_and_config():
     global dfSurgeon, dfSecond, dfRoom, dfType, dfPatient
@@ -395,35 +397,37 @@ def weighted_choice(items,weights):
         upto+=w;
         if upto>=r:return items[i];
 
-def vns(initial_solution,k_max,pert_probs,ls_probs,seed,report_secs, listener=None, reset_iter=1000, iterations=None):
+def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_secs,time_limit,listener=None):
     random.seed(seed);
-    best=copy.deepcopy(initial_solution);best_cost=EvalAllORs(best[0],VERSION="C");
-    k=1;
-    it=0;
+    tabu=deque(maxlen=tabu_tenure);
+    current=copy.deepcopy(initial_solution);
+    best=copy.deepcopy(initial_solution);
+    best_cost=EvalAllORs(best[0],"C");
     rep=sorted(report_secs);
     nxt=0;
     start=time.time();
-    stagnation = 0; 
     while True:
-        it+=1;
-        base=copy.deepcopy(best);
-        pert_fn=PERTURBATIONS[(k-1)%len(PERTURBATIONS)];
-        cand=pert_fn(base,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays);
-        ls_fn=weighted_choice(LOCAL_SEARCHES,ls_probs);
-        cand=ls_fn(cand,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays);
-        c_cost=EvalAllORs(cand[0],VERSION="C");
-        if c_cost<best_cost:
-            best=copy.deepcopy(cand);
-            best_cost=c_cost;
-            k=1;
-            stagnation = 0;
-        else:
-            k += 1;
-            if k > k_max: k = 1;
-            stagnation += 1;
-        if stagnation >= reset_iter:
-            k = 1;
-            stagnation = 0;
+        neighbour=None;
+        neigh_cost=None;
+        trials=0;
+        while trials<50:
+            trials+=1;
+            cand=copy.deepcopy(current);
+            cand=weighted_choice(PERTURBATIONS,pert_probs)(cand,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays);
+            cand=weighted_choice(LOCAL_SEARCHES,ls_probs)(cand,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays);
+            key=tuple(cand[0][0]);
+            c_cost=EvalAllORs(cand[0],"C");
+            if key not in tabu or c_cost<best_cost:
+                neighbour=cand;
+                neigh_cost=c_cost;
+                tabu.append(key);
+                break;
+        if neighbour is None:
+            break;
+        current=copy.deepcopy(neighbour);
+        if neigh_cost<best_cost:
+            best=copy.deepcopy(neighbour);
+            best_cost=neigh_cost;
         elapsed=time.time()-start;
         if nxt<len(rep) and elapsed>=rep[nxt]:
             gap=best_cost;
@@ -432,17 +436,19 @@ def vns(initial_solution,k_max,pert_probs,ls_probs,seed,report_secs, listener=No
             else:
                 print(f"[{elapsed/60:.1f} min] gap = {gap}");
             nxt+=1;
-        if nxt>=len(rep):break;
-        if iterations is not None and len(rep)==0 and it>=iterations:break;
+        if elapsed>=time_limit:
+            break;
+        if nxt>=len(rep) and time_limit==0:
+            break;
     return best;
+
 
 def main():
     parser=argparse.ArgumentParser();
     parser.add_argument("instance_file");
-    parser.add_argument("--k_max",type=int,default=5);
-    parser.add_argument("--reset_iter", type=int, default=1000);
-    parser.add_argument("--iterations",type=int,default=5000);
+    parser.add_argument("--tabu_tenure",type=int,default=20);
     parser.add_argument("--seed",type=int,default=258);
+    parser.add_argument("--iterations",type=int,default=0);
     for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
               "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
               "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]:
@@ -458,10 +464,10 @@ def main():
     else:
         report_secs=[];
     with open(args.instance_file,"r") as f:data=json.load(f);
-    global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot,surgeon,second,room,AOR,dictCosts,OT,I,SP,nSlot,COIN
-    typePatients=data["patients"];nPatients=int(data["n_patients"]);nDays=int(data["days"]);
-    nSurgeons=int(data["surgeons"]);bks=int(data["bks"]);nFichas=int(data["fichas"]);
-    min_affinity=int(data["min_affinity"]);time_limit=int(data["time_limit"]);
+    global typePatients,nPatients,nDays,nSurgeons,bks,time_limit,min_affinity
+    typePatients=data["patients"]; nPatients=int(data["n_patients"]); nDays=int(data["days"]);
+    nSurgeons=int(data["surgeons"]); bks=int(data["bks"]); time_limit=int(data["time_limit"]);
+    min_affinity = int(data["min_affinity"]);
     load_data_and_config();
     initial=GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,SP,COIN,OT,alpha=0.1,modo=1,VERSION="C",hablar=False);
     pert_probs=[getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
@@ -470,18 +476,9 @@ def main():
     ls_probs=[getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]];
-    listener=CSVCheckpoint(report_secs,"vns_checkpoints.csv",args.instance_file);
+    listener=CSVCheckpoint(report_secs,"ts_checkpoints.csv",args.instance_file);
+    best=tabu_search(initial,args.tabu_tenure,pert_probs,ls_probs,args.seed,report_secs,time_limit,listener=listener);
+    print(EvalAllORs(best[0],"C"));
 
-    best = vns(initial,
-           args.k_max,
-           pert_probs,
-           ls_probs,
-           args.seed,
-           report_secs,
-           listener=listener,
-           reset_iter=args.reset_iter,
-           iterations=None);
-    print(EvalAllORs(best[0],VERSION="C"));
-    
 if __name__=="__main__":
     main();
