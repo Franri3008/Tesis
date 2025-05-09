@@ -21,10 +21,17 @@ class CSVCheckpoint:
         self.first = not self.targetfile.exists()
         self.targetfile.parent.mkdir(parents=True, exist_ok=True)
 
-    def notify(self, elapsed, best_cost):
+    def notify(self, elapsed, best_cost, avg_cost, iterations, iter_best):
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
-        row = {"instance": self.instance, "time": elapsed, "best_cost": best_cost}
+        row = {
+            "instance": self.instance,
+            "time": elapsed,
+            "best_gap": best_cost,
+            "avg_gap": avg_cost,
+            "iterations": iterations,
+            "iter_best": iter_best
+        }
         import pandas as pd
         pd.DataFrame([row]).to_csv(
             self.targetfile,
@@ -402,13 +409,20 @@ def weighted_choice(items,weights):
         upto+=w
         if upto>=r: return items[i]
 
-def ils(initial_solution, pert_probs, ls_probs, seed, report_secs, listener=None, iterations=None):
+def ils(initial_solution, pert_probs, ls_probs, seed, report_secs, listener=None, iterations=None, max_no_improve=1000):
     random.seed(seed)
-    best=copy.deepcopy(initial_solution); best_cost=EvalAllORs(best[0],VERSION="C")
+    best = copy.deepcopy(initial_solution)
+    best_cost = EvalAllORs(best[0], VERSION="C")
     initial_time = time.time()
     report_secs_sorted = sorted(report_secs)
     next_report_idx = 0
     it = 0
+    no_improve = 0
+    iter_best = 0
+    costs = []
+    global_best = copy.deepcopy(best)
+    global_best_cost = best_cost
+    global_iter_best = 0
 
     while True:
         it += 1
@@ -418,31 +432,47 @@ def ils(initial_solution, pert_probs, ls_probs, seed, report_secs, listener=None
         ls_fn = weighted_choice(LOCAL_SEARCHES, ls_probs)
         cand = ls_fn(cand, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays)
 
-
         c_cost = EvalAllORs(cand[0], VERSION="C")
+        costs.append(c_cost)
+        if c_cost < global_best_cost:
+            global_best = copy.deepcopy(cand)
+            global_best_cost = c_cost
+            global_iter_best = it
+        
         if c_cost < best_cost:
             best = copy.deepcopy(cand)
             best_cost = c_cost
+            iter_best = it
+            no_improve = 0
+        else:
+            no_improve += 1
+
+        if no_improve >= max_no_improve:
+            best = copy.deepcopy(initial_solution)
+            best_cost = EvalAllORs(best[0], VERSION="C")
+            no_improve = 0
 
         elapsed = time.time() - initial_time
         if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
+            avg_cost = sum(costs) / len(costs)
+            best_gap = global_best_cost          # already a gap-like cost
             if listener:
-                listener.notify(elapsed, best_cost)
+                listener.notify(elapsed, best_gap, avg_cost, it, global_iter_best)
             else:
-                print(f"[{elapsed/60:.1f} min]  best_cost = {best_cost}")
+                print(f"[{elapsed/60:.1f} min] best_gap = {best_gap}, avg_cost = {avg_cost}, iter = {it}, iter_best = {global_iter_best}")
             next_report_idx += 1
 
         if next_report_idx >= len(report_secs_sorted):
             break
         if iterations is not None and len(report_secs_sorted) == 0 and it >= iterations:
             break
-    return best
+    return best, best_cost, sum(costs) / len(costs), it, iter_best
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument("instance_file")
     parser.add_argument("--iterations",type=int,default=5000)
     parser.add_argument("--seed",type=int,default=258)
+    parser.add_argument("--max_no_improve",type=int,default=1000)
     for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
               "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
               "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]:
@@ -457,26 +487,32 @@ def main():
         report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
     else:
         report_secs = []
-    with open(args.instance_file,'r') as f: data=json.load(f)
-    global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot
-    typePatients=data["patients"]; nPatients=int(data["n_patients"]); nDays=int(data["days"])
-    nSurgeons=int(data["surgeons"]); bks=int(data["bks"]); nFichas=int(data["fichas"])
-    min_affinity=int(data["min_affinity"]); time_limit=int(data["time_limit"])
-    load_data_and_config()
-    initial=GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,
-                  SP,COIN,OT,alpha=0.1,modo=1,VERSION="C",hablar=False)
-    pert_probs=[getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
-              "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
-              "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]]
-    ls_probs=[getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
-              "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
-              "CambiarPaciente4","CambiarPaciente5"]]
-    checkpoint_listener = CSVCheckpoint(report_secs, "ils_checkpoints.csv", args.instance_file)
-    best = ils(initial, pert_probs, ls_probs, args.seed,
-               report_secs=report_secs,
-               listener=checkpoint_listener,
-               iterations=None)
-    print(EvalAllORs(best[0],VERSION="C"))
+
+    for i in range(1, 4):
+        instance_file = f"../irace/instances/instance{i}.json"
+        with open(instance_file,'r') as f: data=json.load(f)
+        global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot
+        typePatients=data["patients"]; nPatients=int(data["n_patients"]); nDays=int(data["days"])
+        nSurgeons=int(data["surgeons"]); bks=int(data["bks"]); nFichas=int(data["fichas"])
+        min_affinity=int(data["min_affinity"]); time_limit=int(data["time_limit"])
+        load_data_and_config()
+        initial=GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,
+                      SP,COIN,OT,alpha=0.1,modo=1,VERSION="C",hablar=False)
+        pert_probs=[getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
+                  "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
+                  "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]]
+        ls_probs=[getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
+                  "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
+                  "CambiarPaciente4","CambiarPaciente5"]]
+        checkpoint_listener = CSVCheckpoint(report_secs, "ils_checkpoints.csv", f"instance{i}")
+        best, best_cost, avg_cost, it, iter_best = ils(initial, pert_probs, ls_probs, args.seed,
+                                                       report_secs=report_secs,
+                                                       listener=checkpoint_listener,
+                                                       iterations=None,
+                                                       max_no_improve=args.max_no_improve)
+        #print(f"Instance {i}: {EvalAllORs(best[0],VERSION='C')}")
 
 if __name__=="__main__":
     main()
+
+#python ils.py --report_minutes "0.3,0.6,1" --seed 42 --prob_CambiarPrimarios 15.0 --prob_MejorOR 20.0 --max_iter_no_improve 500 --max_restarts 999

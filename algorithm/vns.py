@@ -41,14 +41,41 @@ class CSVCheckpoint:
         self.next_idx=0;
         self.first=not self.targetfile.exists();
         self.targetfile.parent.mkdir(parents=True,exist_ok=True);
-    def notify(self,elapsed,gap):
-        if self.next_idx>=len(self.secs) or elapsed<self.secs[self.next_idx]:
-            return;
-        pd.DataFrame([{"instance":self.instance,"time":elapsed,"gap":gap}]).to_csv(
-            self.targetfile,mode="a",index=False,header=self.first
-        );
-        self.first=False;
-        self.next_idx+=1;
+        self.gaps = []
+        self.best_gap = float('inf')
+        self.total_iterations = 0
+        self.iter_best_global = 0
+
+    def notify(self, elapsed, gap, iteration):
+        # record history
+        self.gaps.append(gap)
+
+        # update global best
+        if gap < self.best_gap:
+            self.best_gap = gap
+            self.iter_best_global = iteration
+
+        # wait for the next scheduled checkpoint time
+        if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
+            return
+
+        avg_gap = sum(self.gaps) / len(self.gaps)
+
+        pd.DataFrame([{
+            "instance": self.instance,
+            "time": elapsed,
+            "best_gap": self.best_gap,
+            "avg_gap": avg_gap,
+            "iterations": iteration,
+            "iter_best": self.iter_best_global
+        }]).to_csv(
+            self.targetfile,
+            mode="a",
+            index=False,
+            header=self.first
+        )
+        self.first = False
+        self.next_idx += 1
 
 testing=False;
 parametroFichas=0.11;
@@ -428,7 +455,7 @@ def vns(initial_solution,k_max,pert_probs,ls_probs,seed,report_secs, listener=No
         if nxt<len(rep) and elapsed>=rep[nxt]:
             gap=best_cost;
             if listener:
-                listener.notify(elapsed,gap);
+                listener.notify(elapsed, gap, it);
             else:
                 print(f"[{elapsed/60:.1f} min] gap = {gap}");
             nxt+=1;
@@ -437,51 +464,72 @@ def vns(initial_solution,k_max,pert_probs,ls_probs,seed,report_secs, listener=No
     return best;
 
 def main():
-    parser=argparse.ArgumentParser();
-    parser.add_argument("instance_file");
-    parser.add_argument("--k_max",type=int,default=5);
-    parser.add_argument("--reset_iter", type=int, default=1000);
-    parser.add_argument("--iterations",type=int,default=5000);
-    parser.add_argument("--seed",type=int,default=258);
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--k_max", type=int, default=5)
+    parser.add_argument("--reset_iter", type=int, default=1000)
+    parser.add_argument("--iterations", type=int, default=5000)
+    parser.add_argument("--seed", type=int, default=258)
     for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
               "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
               "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]:
-        parser.add_argument(f"--prob_{p}",type=float,default=10.0);
+        parser.add_argument(f"--prob_{p}", type=float, default=10.0)
     for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]:
-        parser.add_argument(f"--prob_{s}",type=float,default=10.0);
-    parser.add_argument("--report_minutes",type=str,default="");
-    args=parser.parse_args();
-    if args.report_minutes.strip():
-        report_secs=[float(x)*60 for x in args.report_minutes.split(",") if x.strip()];
-    else:
-        report_secs=[];
-    with open(args.instance_file,"r") as f:data=json.load(f);
-    global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot,surgeon,second,room,AOR,dictCosts,OT,I,SP,nSlot,COIN
-    typePatients=data["patients"];nPatients=int(data["n_patients"]);nDays=int(data["days"]);
-    nSurgeons=int(data["surgeons"]);bks=int(data["bks"]);nFichas=int(data["fichas"]);
-    min_affinity=int(data["min_affinity"]);time_limit=int(data["time_limit"]);
-    load_data_and_config();
-    initial=GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,SP,COIN,OT,alpha=0.1,modo=1,VERSION="C",hablar=False);
-    pert_probs=[getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
-              "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
-              "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]];
-    ls_probs=[getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
-              "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
-              "CambiarPaciente4","CambiarPaciente5"]];
-    listener=CSVCheckpoint(report_secs,"vns_checkpoints.csv",args.instance_file);
+        parser.add_argument(f"--prob_{s}", type=float, default=10.0)
+    parser.add_argument("--report_minutes", type=str, default="")
+    args = parser.parse_args()
 
-    best = vns(initial,
-           args.k_max,
-           pert_probs,
-           ls_probs,
-           args.seed,
-           report_secs,
-           listener=listener,
-           reset_iter=args.reset_iter,
-           iterations=None);
-    print(EvalAllORs(best[0],VERSION="C"));
-    
+    # parse report times
+    if args.report_minutes.strip():
+        report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
+    else:
+        report_secs = []
+
+    # loop through instance files 1 to 3
+    for idx in range(1, 4):
+        instance_file = f"../irace/instances/instance{idx}.json"
+        listener = CSVCheckpoint(report_secs, "vns_checkpoints.csv", f"instance{idx}")
+
+        # load instance data
+        with open(instance_file, "r") as f:
+            data = json.load(f)
+        global typePatients, nPatients, nDays, nSurgeons, bks, nFichas, min_affinity, time_limit
+        global day, slot, surgeon, second, room, AOR, dictCosts, OT, I, SP, nSlot, COIN
+        typePatients = data["patients"]
+        nPatients = int(data["n_patients"])
+        nDays = int(data["days"])
+        nSurgeons = int(data["surgeons"])
+        bks = int(data["bks"])
+        nFichas = int(data["fichas"])
+        min_affinity = int(data["min_affinity"])
+        time_limit = int(data["time_limit"])
+
+        load_data_and_config()
+
+        initial = GRASP(surgeon, second, patient, room, day, slot, AOR, I,
+                        dictCosts, nFichas, nSlot, SP, COIN, OT,
+                        alpha=0.1, modo=1, VERSION="C", hablar=False)
+
+        pert_probs = [getattr(args, f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios",
+                      "MoverPaciente_bloque","MoverPaciente_dia","EliminarPaciente","AgregarPaciente_1",
+                      "AgregarPaciente_2","DestruirAgregar10","DestruirAfinidad_Todos",
+                      "DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]]
+        ls_probs = [getattr(args, f"prob_{s}") for s in ["MejorarAfinidad_primario",
+                   "MejorarAfinidad_secundario","AdelantarDia","MejorOR","AdelantarTodos",
+                   "CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
+                   "CambiarPaciente4","CambiarPaciente5"]]
+
+        best = vns(initial,
+                   args.k_max,
+                   pert_probs,
+                   ls_probs,
+                   args.seed,
+                   report_secs,
+                   listener=listener,
+                   reset_iter=args.reset_iter,
+                   iterations=args.iterations)
+
+        print(f"Instance {idx}: {EvalAllORs(best[0], VERSION='C')}")
 if __name__=="__main__":
     main();

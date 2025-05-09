@@ -9,11 +9,48 @@ class CSVCheckpoint:
         self.next_idx = 0
         self.first = not self.targetfile.exists()
         self.targetfile.parent.mkdir(parents=True, exist_ok=True)
+        self.gaps = []
+        # self.best_iteration = 0  # Removed
+        # self.current_iteration = 0  # Removed
+        # self.max_iteration = 0  # No longer needed for CSV output
+        self.best_solution = None
+        self.best_gap = float('inf')
+        self.no_improvement_count = 0
+        self.max_no_improvement = 1000
+        self.total_iterations = 0        # never resets
+        self.iter_best_global = 0        # absolute iteration of best_gap
+
     def notify(self, elapsed, gap):
+        """
+        Write one checkpoint row in the same format used by ILS:
+        instance,time,best_gap,avg_gap,iterations,iter_best
+        """
+        # track history
+        self.gaps.append(gap)
+        self.total_iterations += 1
+
+        # update best gap and the iteration where it happened
+        if gap < self.best_gap:
+            self.best_gap = gap
+            self.iter_best_global = self.total_iterations
+            self.no_improvement_count = 0
+        else:
+            self.no_improvement_count += 1
+
+        # wait until the next scheduled time
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
-        import pandas as pd
-        pd.DataFrame([{"instance": self.instance, "time": elapsed, "gap": gap}]).to_csv(
+
+        avg_gap = sum(self.gaps) / len(self.gaps)
+
+        pd.DataFrame([{
+            "instance": self.instance,
+            "time": elapsed,
+            "best_gap": self.best_gap,
+            "avg_gap": avg_gap,
+            "iterations": self.total_iterations,
+            "iter_best": self.iter_best_global
+        }]).to_csv(
             self.targetfile,
             mode="a",
             index=False,
@@ -21,6 +58,13 @@ class CSVCheckpoint:
         )
         self.first = False
         self.next_idx += 1
+
+    def should_restart(self):
+        return self.no_improvement_count >= self.max_no_improvement
+
+    def reset(self):
+        self.no_improvement_count = 0
+
 warnings.filterwarnings("ignore")
 
 import perturbations
@@ -59,32 +103,45 @@ LOCAL_SEARCHES=[
 
 def EvalAllORs(sol, VERSION="C"):
     fichas=[[nFichas*(d+1) for d in range(len(day))] for s in surgeon]
-    pacientes,primarios,secundarios=sol
+    if len(sol) < 3:
+        raise ValueError("Solution tuple must contain at least 3 elements")
+    pacientes, primarios, secundarios = sol[:3]
     def evalSchedule(pacientes,primarios,secundarios,or_id):
-        bloques_por_paciente={}; penalizaciones=0; score_or=0
+        bloques_por_paciente = {}; penalizaciones = 0; score_or = 0
         for p_idx in range(len(pacientes)):
-            if pacientes[p_idx]!=-1:
-                o_p,d_p,t_p=decompress(pacientes[p_idx])
-                if o_p==or_id:
-                    duracion=OT[p_idx]; prioridad_paciente=I[(p_idx,d_p)]
-                    s=primarios[pacientes[p_idx]]; a=secundarios[pacientes[p_idx]]
+            if pacientes[p_idx] != -1:
+                o_p, d_p, t_p = decompress(pacientes[p_idx])
+                if o_p == or_id:
+                    duracion = OT[p_idx]
+                    prioridad_paciente = I[(p_idx, d_p)]
+                    s = primarios.get(pacientes[p_idx])
+                    a = secundarios.get(pacientes[p_idx])
+                    if s is None or a is None:
+                        # missing mapping – treat as infeasible block
+                        penalizaciones += 1000
+                        continue
                     if p_idx not in bloques_por_paciente:
-                        bloques_por_paciente[p_idx]=[]
-                        score_or+=1000*prioridad_paciente
-                        s_idx=surgeon.index(s); cost=dictCosts[(s,a,pacientes[p_idx])]
-                        for d_aux in range(d_p,nDays):
-                            fichas[s_idx][d_aux]-=cost
+                        bloques_por_paciente[p_idx] = []
+                        score_or += 1000 * prioridad_paciente
+                        s_idx = surgeon.index(s)
+                        cost = dictCosts[(s, a, pacientes[p_idx])]
+                        for d_aux in range(d_p, nDays):
+                            fichas[s_idx][d_aux] -= cost
                     for b in range(int(duracion)):
-                        t_actual=t_p+b
-                        bloques_por_paciente[p_idx].append(compress(o_p,d_p,t_actual))
-                        if SP[p_idx][s]!=1: penalizaciones+=10
-                        if s==a: penalizaciones+=10
-        for paciente_id,bloques in bloques_por_paciente.items():
-            bloques.sort(); duracion=OT[paciente_id]
-            if len(bloques)!=duracion: penalizaciones+=50*len(bloques)
-            if not all(bloques[i]+1==bloques[i+1] for i in range(len(bloques)-1)):
-                penalizaciones+=100*len(bloques)
-        score_or-=10*penalizaciones
+                        t_actual = t_p + b
+                        bloques_por_paciente[p_idx].append(compress(o_p, d_p, t_actual))
+                        if SP[p_idx][s] != 1:
+                            penalizaciones += 10
+                        if s == a:
+                            penalizaciones += 10
+        for paciente_id, bloques in bloques_por_paciente.items():
+            bloques.sort()
+            duracion = OT[paciente_id]
+            if len(bloques) != duracion:
+                penalizaciones += 50 * len(bloques)
+            if not all(bloques[i] + 1 == bloques[i + 1] for i in range(len(bloques) - 1)):
+                penalizaciones += 100 * len(bloques)
+        score_or -= 10 * penalizaciones
         return score_or
     puntaje=0
     for or_id in room: puntaje+=evalSchedule(pacientes,primarios,secundarios,or_id)
@@ -378,54 +435,96 @@ def load_data_and_config():
         OT[p] = int(dfPatient.iloc[p]["tipo"]);
     nFichas = int((parametroFichas * 4 * nSlot * len(room) * 2 * 3 )/(len(surgeon)**0.5));
 
-def weighted_choice(items,weights):
-    total=sum(weights); r=random.uniform(0,total); upto=0
-    for i,w in enumerate(weights):
-        upto+=w
-        if upto>=r: return items[i]
+def weighted_choice(items, weights):
+    """Return one element from *items* chosen proportionally to *weights*.
+       Items whose weight is <=0 are ignored."""
+    pool = [(item, w) for item, w in zip(items, weights) if w > 0]
+    if not pool:
+        return random.choice(items)
+    total = sum(w for _, w in pool)
+    r = random.uniform(0, total)
+    upto = 0
+    for item, w in pool:
+        upto += w
+        if upto >= r:
+            return item
 
-def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report_secs,
-       time_limit, listener=None, iterations=None):
+def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report_secs, time_limit, listener=None, iterations=None):
     random.seed(seed)
-    current=copy.deepcopy(initial_solution); 
-    current_cost=EvalAllORs(current[0],"C")
-    best = copy.deepcopy(current); 
-    best_cost=current_cost
+
+    # work with the full 4‑component solution
+    current = copy.deepcopy(initial_solution)
+    current_cost = EvalAllORs(current[0], VERSION="C")
+
+    best = copy.deepcopy(current)
+    best_cost = current_cost
     temp = temp_inicial
-    init_time = time.time(); 
-    rep=sorted(report_secs); 
-    nxt=0; 
-    it=0
+    init_time = time.time()
+    rep = sorted(report_secs)
+    nxt = 0
+    it = 0
+
+    # ensure the listener starts with a valid solution
+    if listener and listener.best_solution is None:
+        listener.best_solution = copy.deepcopy(current)
+
     while True:
-        it+=1
+        it += 1
         neighbour = copy.deepcopy(current)
-        neighbour = weighted_choice(PERTURBATIONS,pert_probs)(neighbour,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays)
-        neighbour = weighted_choice(LOCAL_SEARCHES,ls_probs)(neighbour,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays)
-        neigh_cost = EvalAllORs(neighbour[0],"C")
+        try:
+            pert_func = weighted_choice(PERTURBATIONS, pert_probs)
+            result = pert_func(neighbour, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays)
+            if result is not None:
+                neighbour = result
+        except Exception as e:
+            # invalid neighbour – keep current solution
+            neighbour = copy.deepcopy(current)
+        try:
+            ls_func = weighted_choice(LOCAL_SEARCHES, ls_probs)
+            result = ls_func(neighbour, surgeon, second, OT, I, SP, AOR, dictCosts, nSlot, nDays)
+            if result is not None:
+                neighbour = result
+        except Exception:
+            # keep neighbour unchanged if LS fails
+            pass
+        try:
+            neigh_cost = EvalAllORs(neighbour[0], VERSION="C")
+        except Exception:
+            # fall back to a very bad cost so the neighbour is rejected
+            neigh_cost = float('inf')
+
+        
         if neigh_cost-current_cost<0 or random.random()<math.exp(-(neigh_cost-current_cost)/temp):
-            current, current_cost=copy.deepcopy(neighbour), neigh_cost
-            if neigh_cost<best_cost:
-                best, best_cost=copy.deepcopy(neighbour), neigh_cost
+            current, current_cost = copy.deepcopy(neighbour), neigh_cost
+            if neigh_cost < best_cost:
+                best, best_cost = copy.deepcopy(neighbour), neigh_cost
+                if listener:
+                    listener.best_solution = copy.deepcopy(best)
+
         temp *= alpha
         elapsed = time.time()-init_time
+        
+        if listener:
+            listener.notify(elapsed, best_cost)
+            if listener.should_restart():
+                current = copy.deepcopy(listener.best_solution)
+                current_cost = EvalAllORs(current[0], VERSION="C")
+                temp = temp_inicial
+                listener.reset()
+
         if elapsed >= time_limit:
             break
-        if nxt<len(rep) and elapsed>=rep[nxt]:
-            gap = best_cost
-            if listener:
-                listener.notify(elapsed, gap)
-            else:
-                print(f"[{elapsed/60:.1f} min] gap = {gap}")
-            nxt+=1
-        if nxt>=len(rep): 
+        if nxt < len(rep) and elapsed >= rep[nxt]:
+            nxt += 1
+        if nxt >= len(rep):
             break
         if temp < 1e-6:
             temp = temp_inicial
+
     return best
 
 def main():
-    parser=argparse.ArgumentParser()
-    parser.add_argument("instance_file")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--iterations",type=int,default=5000)
     parser.add_argument("--temp_inicial",type=float,default=800.0)
     parser.add_argument("--alpha",type=float,default=0.99)
@@ -439,34 +538,58 @@ def main():
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]:
         parser.add_argument(f"--prob_{s}",type=float,default=10.0)
-    args=parser.parse_args()
-    report_secs=[float(x)*60 for x in args.report_minutes.split(",") if x.strip()] if args.report_minutes.strip() else []
-    with open(args.instance_file,'r') as f: data=json.load(f)
-    global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot
-    typePatients=data["patients"]; nPatients=int(data["n_patients"]); nDays=int(data["days"])
-    nSurgeons=int(data["surgeons"]); bks=int(data["bks"]); nFichas=int(data["fichas"])
-    min_affinity=int(data["min_affinity"]); time_limit=int(data["time_limit"])
-    load_data_and_config()
-    initial=GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,
-                  SP,COIN,OT,alpha=0.1,modo=1,VERSION="C",hablar=False)
-    pert_probs=[getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
-              "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
-              "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]]
-    ls_probs=[getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
-              "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
-              "CambiarPaciente4","CambiarPaciente5"]]
-    checkpoint_listener = CSVCheckpoint(report_secs, "sa_checkpoints.csv", args.instance_file)
-    best = sa(initial,
-              args.temp_inicial,
-              args.alpha,
-              pert_probs,
-              ls_probs,
-              args.seed,
-              report_secs=report_secs,
-              time_limit=time_limit,
-              listener=checkpoint_listener,
-              iterations=args.iterations if not report_secs else None)
-    print(EvalAllORs(best[0],"C"))
+    args = parser.parse_args()
+    report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()] if args.report_minutes.strip() else []
+    
+    
+    for i in range(1, 4):
+        try:
+            # fresh listener per instance so next_idx and counters start from zero
+            checkpoint_listener = CSVCheckpoint(report_secs, "sa_checkpoints.csv", f"instance{i}")
+            with open(f"../irace/instances/instance{i}.json",'r') as f:
+                data = json.load(f)
+            
+            global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot
+            typePatients = data["patients"]
+            nPatients = int(data["n_patients"])
+            nDays = int(data["days"])
+            nSurgeons = int(data["surgeons"])
+            bks = int(data["bks"])
+            nFichas = int(data["fichas"])
+            min_affinity = int(data["min_affinity"])
+            time_limit = int(data["time_limit"])
+            
+            load_data_and_config()
+            initial = GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,
+                          SP,COIN,OT,alpha=0.2,modo=1,VERSION="C",hablar=False)
+            
+            if initial is None:
+                print(f"Warning: Could not generate initial solution for instance {i}, skipping...")
+                continue
+                
+            pert_probs = [getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
+                      "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
+                      "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]]
+            ls_probs = [getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
+                      "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
+                      "CambiarPaciente4","CambiarPaciente5"]]
+            
+            best = sa(initial,
+                      args.temp_inicial,
+                      args.alpha,
+                      pert_probs,
+                      ls_probs,
+                      args.seed,
+                      report_secs=report_secs,
+                      time_limit=time_limit,
+                      listener=checkpoint_listener,
+                      iterations=args.iterations if not report_secs else None)
+            print(f"Instance {i}: {EvalAllORs(best[0], VERSION='C')}")
+        except Exception as e:
+            print(f"Error processing instance {i}: {str(e)}")
+            continue
 
 if __name__=="__main__":
     main()
+
+#python sa.py --temp_inicial 800.0 --alpha 0.99 --seed 258 --report_minutes "0.1,0.3,0.5" --iterations 500000 --prob_CambiarPrimarios 15.0 --prob_MejorOR 20.0
