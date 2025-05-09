@@ -41,21 +41,44 @@ importlib.reload(initial_solutions)
 from initial_solutions import GRASP
 
 class CSVCheckpoint:
-    def __init__(self,secs,csv_path,instance):
-        self.secs=sorted(secs);
-        self.targetfile=Path(csv_path);
-        self.instance=instance;
-        self.next_idx=0;
-        self.first=not self.targetfile.exists();
-        self.targetfile.parent.mkdir(parents=True,exist_ok=True);
-    def notify(self,elapsed,gap):
-        if self.next_idx>=len(self.secs) or elapsed<self.secs[self.next_idx]:
-            return;
-        pd.DataFrame([{"instance":self.instance,"time":elapsed,"gap":gap}]).to_csv(
-            self.targetfile,mode="a",index=False,header=self.first
-        );
-        self.first=False;
-        self.next_idx+=1;
+    def __init__(self, secs, csv_path, instance):
+        self.secs = sorted(secs)
+        self.targetfile = Path(csv_path)
+        self.instance = instance
+        self.next_idx = 0
+        self.first = not self.targetfile.exists()
+        self.targetfile.parent.mkdir(parents=True, exist_ok=True)
+        self.gaps = []
+        self.best_gap = float("inf")
+        self.iter_best_global = 0
+
+    def update_best(self, iteration, gap):
+        self.best_gap = gap;
+        self.iter_best_global = iteration;
+
+    def notify(self, elapsed, gap, iteration):
+        self.gaps.append(gap)
+
+        if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
+            return
+
+        avg_gap = sum(self.gaps) / len(self.gaps)
+
+        pd.DataFrame([{
+            "instance": self.instance,
+            "time": elapsed,
+            "best_gap": self.best_gap,
+            "avg_gap": avg_gap,
+            "iterations": iteration,
+            "iter_best": self.iter_best_global
+        }]).to_csv(
+            self.targetfile,
+            mode="a",
+            index=False,
+            header=self.first
+        )
+        self.first = False
+        self.next_idx += 1
 
 PERTURBATIONS=[
     CambiarPrimarios,CambiarSecundarios,MoverPaciente_bloque,MoverPaciente_dia,
@@ -397,15 +420,19 @@ def weighted_choice(items,weights):
         upto+=w;
         if upto>=r:return items[i];
 
-def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_secs,time_limit,listener=None):
+def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_secs,time_limit,listener=None,reset_iter=1000):
     random.seed(seed);
     tabu=deque(maxlen=tabu_tenure);
     current=copy.deepcopy(initial_solution);
     best=copy.deepcopy(initial_solution);
     best_cost=EvalAllORs(best[0],"C");
+    if listener:
+        listener.update_best(0, best_cost);
+    no_improve_counter = 0;
     rep=sorted(report_secs);
     nxt=0;
     start=time.time();
+    it = 0
     while True:
         neighbour=None;
         neigh_cost=None;
@@ -428,57 +455,112 @@ def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_sec
         if neigh_cost<best_cost:
             best=copy.deepcopy(neighbour);
             best_cost=neigh_cost;
+            no_improve_counter = 0;
+            if listener:
+                listener.update_best(it, best_cost);
+        else:
+            no_improve_counter += 1;
+
+        if no_improve_counter >= reset_iter:
+            current = GRASP(surgeon, second, patient, room, day, slot, AOR, I,
+                            dictCosts, nFichas, nSlot, SP, COIN, OT,
+                            alpha=0.1, modo=1, VERSION="C", hablar=False);
+            tabu.clear();
+            no_improve_counter = 0;
+            current_cost = EvalAllORs(current[0],"C");
+            if current_cost < best_cost:
+                best = copy.deepcopy(current);
+                best_cost = current_cost;
+                if listener:
+                    listener.update_best(it, best_cost);
         elapsed=time.time()-start;
         if nxt<len(rep) and elapsed>=rep[nxt]:
             gap=best_cost;
             if listener:
-                listener.notify(elapsed,gap);
+                listener.notify(elapsed, gap, it);
             else:
                 print(f"[{elapsed/60:.1f} min] gap = {gap}");
             nxt+=1;
+        it += 1
         if elapsed>=time_limit:
             break;
         if nxt>=len(rep) and time_limit==0:
             break;
+    # final checkpoint in case no scheduled time was reached
     return best;
 
 
 def main():
-    parser=argparse.ArgumentParser();
-    parser.add_argument("instance_file");
-    parser.add_argument("--tabu_tenure",type=int,default=20);
-    parser.add_argument("--seed",type=int,default=258);
-    parser.add_argument("--iterations",type=int,default=0);
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tabu_tenure", type=int, default=20)
+    parser.add_argument("--seed", type=int, default=258)
+    parser.add_argument("--iterations", type=int, default=0)
+    parser.add_argument("--reset_iter", type=int, default=1000)
     for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
               "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
               "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]:
-        parser.add_argument(f"--prob_{p}",type=float,default=10.0);
+        parser.add_argument(f"--prob_{p}", type=float, default=10.0)
     for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]:
-        parser.add_argument(f"--prob_{s}",type=float,default=10.0);
-    parser.add_argument("--report_minutes",type=str,default="");
-    args=parser.parse_args();
+        parser.add_argument(f"--prob_{s}", type=float, default=10.0)
+    parser.add_argument("--report_minutes", type=str, default="")
+    args = parser.parse_args()
+
+    # checkpoint times
     if args.report_minutes.strip():
-        report_secs=[float(x)*60 for x in args.report_minutes.split(",") if x.strip()];
+        report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
     else:
-        report_secs=[];
-    with open(args.instance_file,"r") as f:data=json.load(f);
-    global typePatients,nPatients,nDays,nSurgeons,bks,time_limit,min_affinity
-    typePatients=data["patients"]; nPatients=int(data["n_patients"]); nDays=int(data["days"]);
-    nSurgeons=int(data["surgeons"]); bks=int(data["bks"]); time_limit=int(data["time_limit"]);
-    min_affinity = int(data["min_affinity"]);
-    load_data_and_config();
-    initial=GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,SP,COIN,OT,alpha=0.1,modo=1,VERSION="C",hablar=False);
-    pert_probs=[getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
-              "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
-              "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]];
-    ls_probs=[getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
-              "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
-              "CambiarPaciente4","CambiarPaciente5"]];
-    listener=CSVCheckpoint(report_secs,"ts_checkpoints.csv",args.instance_file);
-    best=tabu_search(initial,args.tabu_tenure,pert_probs,ls_probs,args.seed,report_secs,time_limit,listener=listener);
-    print(EvalAllORs(best[0],"C"));
+        report_secs = []
+
+    # probabilities
+    pert_probs = [getattr(args, f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque",
+                 "MoverPaciente_dia","EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2",
+                 "DestruirAgregar10","DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]]
+    ls_probs   = [getattr(args, f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario",
+                 "AdelantarDia","MejorOR","AdelantarTodos","CambiarPaciente1","CambiarPaciente2",
+                 "CambiarPaciente3","CambiarPaciente4","CambiarPaciente5"]]
+
+    for idx in range(1, 4):
+        instance_file = f"../irace/instances/instance{idx}.json"
+        listener = CSVCheckpoint(report_secs, "ts_checkpoints.csv", f"instance{idx}")
+
+        # load instance data
+        with open(instance_file, "r") as f:
+            data = json.load(f)
+
+        global typePatients, nPatients, nDays, nSurgeons, bks, time_limit, min_affinity
+        typePatients = data["patients"]
+        nPatients    = int(data["n_patients"])
+        nDays        = int(data["days"])
+        nSurgeons    = int(data["surgeons"])
+        bks          = int(data["bks"])
+        # runtime limit = last checkpoint time + 5 s
+        if report_secs:
+            time_limit = max(report_secs) + 5.0
+        else:
+            time_limit = 0.0
+        min_affinity = int(data["min_affinity"])
+
+        load_data_and_config()
+
+        initial = GRASP(surgeon, second, patient, room, day, slot, AOR, I,
+                        dictCosts, nFichas, nSlot, SP, COIN, OT,
+                        alpha=0.1, modo=1, VERSION="C", hablar=False)
+
+        best = tabu_search(initial,
+                           args.tabu_tenure,
+                           pert_probs,
+                           ls_probs,
+                           args.seed,
+                           report_secs,
+                           time_limit,
+                           listener,
+                           args.reset_iter)
+
+        print(f"Instance {idx}: {EvalAllORs(best[0], 'C')}")
 
 if __name__=="__main__":
     main();
+
+#python ts.py --tabu_tenure 25 --iterations 500000 --seed 258 --prob_AgregarPaciente_2 19.0 --report_minutes "0.1,0.3,0.5"
