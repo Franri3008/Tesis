@@ -34,7 +34,7 @@ importlib.reload(initial_solutions)
 from initial_solutions import normal,GRASP
 
 class CSVCheckpoint:
-    def __init__(self,secs,csv_path,instance):
+    def __init__(self,secs,csv_path,instance,aggregator=None):
         self.secs=sorted(secs);
         self.targetfile=Path(csv_path);
         self.instance=instance;
@@ -45,6 +45,7 @@ class CSVCheckpoint:
         self.best_gap = float('inf')
         self.total_iterations = 0
         self.iter_best_global = 0
+        self.aggregator = aggregator
 
     def notify(self, elapsed, gap, iteration):
         # record history
@@ -61,21 +62,76 @@ class CSVCheckpoint:
 
         avg_gap = sum(self.gaps) / len(self.gaps)
 
-        pd.DataFrame([{
-            "instance": self.instance,
-            "time": elapsed,
-            "best_gap": self.best_gap,
-            "avg_gap": avg_gap,
-            "iterations": iteration,
-            "iter_best": self.iter_best_global
-        }]).to_csv(
-            self.targetfile,
-            mode="a",
-            index=False,
-            header=self.first
-        )
-        self.first = False
+        row_best = self.best_gap
+        row_avg  = avg_gap
+        row_iter = iteration
+        row_iter_best = self.iter_best_global
+
+        if self.aggregator is not None:
+            self.aggregator.add(self.next_idx,
+                                row_best, row_avg,
+                                row_iter, row_iter_best)
+        else:
+            pd.DataFrame([{
+                "instance": self.instance,
+                "time": elapsed,
+                "best_gap": row_best,
+                "avg_gap":  row_avg,
+                "iterations": row_iter,
+                "iter_best": row_iter_best
+            }]).to_csv(
+                self.targetfile,
+                mode="a",
+                index=False,
+                header=self.first
+            )
+            self.first = False
         self.next_idx += 1
+
+
+# Aggregator class for CSVCheckpoint
+class CSVCheckpointAggregator:
+    """Aggregate checkpoint stats from many runs then write averaged rows."""
+    def __init__(self, secs, csv_path, instance):
+        self.secs       = secs
+        self.targetfile = Path(csv_path)
+        self.instance   = instance
+        self.data       = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[]) for _ in secs]
+        self.first      = not self.targetfile.exists()
+
+    def add(self, idx, best_gap, avg_gap, iterations, iter_best):
+        self.data[idx]["best_gaps"].append(best_gap)
+        self.data[idx]["avg_gaps"].append(avg_gap)
+        self.data[idx]["iterations"].append(iterations)
+        self.data[idx]["iter_bests"].append(iter_best)
+
+    def finalize(self):
+        rows = []
+        for idx, sec in enumerate(self.secs):
+            bucket = self.data[idx]
+            if not bucket["best_gaps"]:
+                continue
+            avg_gap    = sum(bucket["avg_gaps"]) / len(bucket["avg_gaps"])
+            iterations = int(sum(bucket["iterations"]) / len(bucket["iterations"]))
+            best_gap   = min(bucket["best_gaps"])
+            best_idx   = bucket["best_gaps"].index(best_gap)
+            iter_best  = bucket["iter_bests"][best_idx]
+            rows.append({
+                "instance": self.instance,
+                "time": sec,
+                "best_gap": best_gap,
+                "avg_gap":  avg_gap,
+                "iterations": iterations,
+                "iter_best": iter_best
+            })
+        if rows:
+            pd.DataFrame(rows).to_csv(
+                self.targetfile,
+                mode="a",
+                index=False,
+                header=self.first
+            )
+            self.first = False
 
 testing=False;
 parametroFichas=0.11;
@@ -486,10 +542,9 @@ def main():
     else:
         report_secs = []
 
-    # loop through instance files 1 to 3
-    for idx in range(1, 4):
+    seeds = list(range(10))
+    for idx in range(1, 16):
         instance_file = f"../irace/instances/instance{idx}.json"
-        listener = CSVCheckpoint(report_secs, "vns_checkpoints.csv", f"instance{idx}")
 
         # load instance data
         with open(instance_file, "r") as f:
@@ -507,6 +562,10 @@ def main():
 
         load_data_and_config()
 
+        aggregator = CSVCheckpointAggregator(report_secs,
+                                             "vns_checkpoints.csv",
+                                             f"instance{idx}")
+
         initial = GRASP(surgeon, second, patient, room, day, slot, AOR, I,
                         dictCosts, nFichas, nSlot, SP, COIN, OT,
                         alpha=0.1, modo=1, VERSION="C", hablar=False)
@@ -520,16 +579,25 @@ def main():
                    "CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
                    "CambiarPaciente4","CambiarPaciente5"]]
 
-        best = vns(initial,
-                   args.k_max,
-                   pert_probs,
-                   ls_probs,
-                   args.seed,
-                   report_secs,
-                   listener=listener,
-                   reset_iter=args.reset_iter,
-                   iterations=args.iterations)
-
-        print(f"Instance {idx}: {EvalAllORs(best[0], VERSION='C')}")
+        solutions = []
+        for ejec in seeds:
+            listener = CSVCheckpoint(report_secs,
+                                     "vns_checkpoints.csv",
+                                     f"instance{idx}",
+                                     aggregator=aggregator)
+            best = vns(initial,
+                       args.k_max,
+                       pert_probs,
+                       ls_probs,
+                       ejec,
+                       report_secs,
+                       listener=listener,
+                       reset_iter=args.reset_iter,
+                       iterations=args.iterations)
+            solutions.append(EvalAllORs(best[0], VERSION="C"))
+        aggregator.finalize()
+        print(f"Instance {idx}: mean_cost = {-np.mean(solutions):.5f}, "
+              f"mean_gap = {1 - (-np.mean(solutions)/bks):.5f}")
 if __name__=="__main__":
     main();
+#python vns.py --k_max 5 --reset_iter 1000 --iterations 50000 --seed 258 --report_minutes "0.1,0.3,0.5" --prob_CambiarPaciente5 10.0

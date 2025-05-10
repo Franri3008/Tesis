@@ -2,8 +2,6 @@
 # metaheuristic.py
 
 import sys
-
-import sys
 import warnings
 warnings.filterwarnings("ignore");
 import json
@@ -25,23 +23,102 @@ class CSVMetaCheckpoint:
         self.next_idx   = 0
         self.first      = not self.targetfile.exists()
         self.targetfile.parent.mkdir(parents=True, exist_ok=True)
+        self.best_gap = float("inf");
+        self.avg_gap_global = None;
+        self.iter_best_global = 0;
 
-    def notify(self, elapsed, best_cost):
+    def update_best(self, iteration, gap):
+        if gap < self.best_gap:
+            self.best_gap = gap;
+            self.iter_best_global = iteration;
+
+    def notify(self, elapsed, best_gap, avg_gap, iteration):
+        self.avg_gap_global = avg_gap
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
         row = {
             "instance": self.instance,
             "time": elapsed,
-            "gap": best_cost
+            "best_gap": best_gap,
+            "avg_gap":  avg_gap,
+            "iterations": iteration,
+            "iter_best": self.iter_best_global
         }
-        import pandas as pd
         pd.DataFrame([row]).to_csv(
             self.targetfile,
             mode='a',
             index=False,
             header=self.first
         )
-        self.first    = False
+        self.first = False;
+        self.next_idx += 1;
+
+# Aggregator for checkpoint data across runs
+class CSVMetaAggregator:
+    """Collects checkpoint data from many runs, then writes one averaged row per scheduled time."""
+    def __init__(self, secs, csv_path, instance):
+        self.secs       = secs
+        self.targetfile = Path(csv_path)
+        self.instance   = instance
+        # one bucket per checkpoint index
+        self.data = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[]) for _ in secs]
+        self.first = not self.targetfile.exists()
+
+    def add(self, idx, best_gap, avg_gap, iterations, iter_best):
+        self.data[idx]["best_gaps"].append(best_gap)
+        self.data[idx]["avg_gaps"].append(avg_gap)
+        self.data[idx]["iterations"].append(iterations)
+        self.data[idx]["iter_bests"].append(iter_best)
+
+    def finalize(self):
+        rows = []
+        for idx, sec in enumerate(self.secs):
+            bucket = self.data[idx]
+            if not bucket["best_gaps"]:
+                # nothing collected for this checkpoint
+                continue
+            # average values
+            avg_gap = sum(bucket["avg_gaps"]) / len(bucket["avg_gaps"])
+            iterations = int(sum(bucket["iterations"]) / len(bucket["iterations"]))
+            # choose best gap and its corresponding iter_best
+            best_gap = min(bucket["best_gaps"])
+            best_idx = bucket["best_gaps"].index(best_gap)
+            iter_best = bucket["iter_bests"][best_idx]
+            rows.append({
+                "instance": self.instance,
+                "time": sec,
+                "best_gap": best_gap,
+                "avg_gap":  avg_gap,
+                "iterations": iterations,
+                "iter_best": iter_best
+            })
+        if rows:
+            pd.DataFrame(rows).to_csv(
+                self.targetfile,
+                mode='a',
+                index=False,
+                header=self.first
+            )
+            self.first = False
+
+# Per-run listener that forwards to aggregator
+class RunCheckpoint:
+    """Acts like CSVMetaCheckpoint but forwards data to a CSVMetaAggregator."""
+    def __init__(self, secs, aggregator):
+        self.secs = secs
+        self.agg  = aggregator
+        self.next_idx = 0
+        self.iter_best_global = 0
+
+    def update_best(self, iteration, gap):
+        # Store the iteration where current run achieved its best gap
+        self.iter_best_global = iteration
+
+    def notify(self, elapsed, best_gap, avg_gap, iteration):
+        # Forward only at scheduled checkpoints
+        if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
+            return
+        self.agg.add(self.next_idx, best_gap, avg_gap, iteration, self.iter_best_global)
         self.next_idx += 1
 
 import perturbations
@@ -574,6 +651,8 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
     best_solution = ((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     best_sol = (best_solution[0][0].copy(), best_solution[0][1].copy(), best_solution[0][2].copy());
     best_cost = EvalAllORs(best_sol, VERSION="C");
+    if listener:
+        listener.update_best(0, 1 - (-best_cost)/bks);
     elite_pool = [(best_cost, copy.deepcopy(best_solution))];
     current_sol = ((best_sol[0].copy(), best_sol[1].copy(), best_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     current_cost = best_cost;
@@ -586,6 +665,8 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
     else:
         BusqTemp = 0;
 
+    sum_gap = 0.0;
+    count_iter = 0;
     i = 0
     while True:
         i += 1
@@ -604,8 +685,10 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
                 new_sol, last_s = BusquedaLocal(new_sol);
             else:
                 new_sol, last_s = copy.deepcopy(current_sol), "NoOp";
-
         new_cost = EvalAllORs(new_sol[0], VERSION="C");
+        cur_gap = 1 - (-current_cost) / bks;
+        sum_gap += cur_gap;
+        count_iter += 1;
         delta = current_cost - new_cost;
 
         ac = acceptance_criterion.lower();
@@ -623,6 +706,8 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
                     elite_pool = elite_pool[:elite_size];
                     if 'iter_best' not in locals():
                         iter_best = i
+                    if listener:
+                        listener.update_best(i, 1 - (-best_cost)/bks);
                 d_ = 0;
             else:
                 d_ += 1;
@@ -640,6 +725,8 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
                     elite_pool = elite_pool[:elite_size];
                     if 'iter_best' not in locals():
                         iter_best = i
+                    if listener:
+                        listener.update_best(i, 1 - (-best_cost)/bks);
                 d_ = 0;
             else:
                 d_ += 1;
@@ -656,6 +743,8 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
                 elite_pool = elite_pool[:elite_size];
                 if 'iter_best' not in locals():
                     iter_best = i
+                if listener:
+                    listener.update_best(i, 1 - (-best_cost)/bks);
                 d_ = 0;
             else:
                 current_sol = copy.deepcopy(best_solution);
@@ -687,11 +776,12 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
         current_time = time.time();
         elapsed = current_time - initial_time
         if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
-            gap = 1 - (-best_cost) / bks
+            best_gap = 1 - (-best_cost) / bks;
+            avg_gap  = sum_gap / count_iter if count_iter else best_gap;
             if listener:
-                listener.notify(elapsed, gap)
+                listener.notify(elapsed, best_gap, avg_gap, i)
             else:
-                print(f"[{elapsed/60:.1f} min] gap = {gap}")
+                print(f"[{elapsed/60:.1f} min] gap = {best_gap}")
             next_report_idx += 1
         if current_time - initial_time >= last_report:
             mejores_sols.append(copy.deepcopy(current_sol));
@@ -711,10 +801,6 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
 def main():
     global typePatients, nPatients, nSurgeons, nDays, min_affinity, time_limit, bks
     parser = argparse.ArgumentParser()
-    parser.add_argument("instance_id")
-    parser.add_argument("seed")
-    parser.add_argument("random_seed")
-    parser.add_argument("instance_file")
     parser.add_argument("--destruct", type=int, default=200)
     parser.add_argument("--temp_inicial", type=float, default=800.0)
     parser.add_argument("--alpha", type=float, default=0.99)
@@ -756,151 +842,104 @@ def main():
     parser.add_argument("--report_minutes", type=str, default="")
 
     args = parser.parse_args()
-
-    instance_id                  = args.instance_id;
-    seed                         = args.seed;
-    random_seed                  = args.random_seed;
-    instance_file                = args.instance_file;
-    destruct                     = args.destruct;
-    temp_inicial                 = args.temp_inicial;
-    alpha                        = args.alpha;
-    prob_CambiarPrimarios        = args.prob_CambiarPrimarios;
-    prob_CambiarSecundarios      = args.prob_CambiarSecundarios;
-    prob_MoverPaciente_bloque    = args.prob_MoverPaciente_bloque;
-    prob_MoverPaciente_dia       = args.prob_MoverPaciente_dia;
-    prob_EliminarPaciente        = args.prob_EliminarPaciente;
-    prob_AgregarPaciente_1       = args.prob_AgregarPaciente_1;
-    prob_AgregarPaciente_2       = args.prob_AgregarPaciente_2;
-    prob_DestruirAgregar10       = args.prob_DestruirAgregar10;
-    prob_DestruirAfinidad_Todos  = args.prob_DestruirAfinidad_Todos;
-    prob_DestruirAfinidad_Uno    = args.prob_DestruirAfinidad_Uno;
-    prob_PeorOR                  = args.prob_PeorOR;
-    prob_AniquilarAfinidad       = args.prob_AniquilarAfinidad;
-    prob_MejorarAfinidad_primario= args.prob_MejorarAfinidad_primario;
-    prob_MejorarAfinidad_secundario= args.prob_MejorarAfinidad_secundario;
-    prob_AdelantarDia            = args.prob_AdelantarDia;
-    prob_MejorOR                 = args.prob_MejorOR;
-    prob_AdelantarTodos          = args.prob_AdelantarTodos;
-    prob_CambiarPaciente1        = args.prob_CambiarPaciente1;
-    prob_CambiarPaciente2        = args.prob_CambiarPaciente2;
-    prob_CambiarPaciente3        = args.prob_CambiarPaciente3;
-    prob_CambiarPaciente4        = args.prob_CambiarPaciente4;
-    prob_CambiarPaciente5        = args.prob_CambiarPaciente5;
-    destruct_type                = args.destruct_type;
-    prob_DestruirOR              = args.prob_DestruirOR;
-    prob_elite                   = args.prob_elite;
-    prob_GRASP                   = args.prob_GRASP;
-    prob_normal                  = args.prob_normal;
-    prob_Pert                    = 1;
-    prob_Busq                    = args.prob_Busq;
-    BusqTemp                     = args.BusqTemp;
-    GRASP_alpha                  = args.GRASP_alpha;
-    elite_size                   = args.elite_size;
-    prob_GRASP1                  = args.prob_GRASP1;
-    prob_GRASP2                  = args.prob_GRASP2;
-    prob_GRASP3                  = args.prob_GRASP3;
-    acceptance_criterion         = args.acceptance_criterion;
+    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,16)];
+    seeds = list(range(10))
     if args.report_minutes.strip():
         report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
     else:
         report_secs = []
 
-    random.seed(seed);
-    #max_iter = 125000;
+    overall_start = time.time()
+    for instance_file in instance_files:
+        instance_name = Path(instance_file).stem
+        with open(instance_file, 'r') as f:
+            data = json.load(f)
 
-    with open(instance_file, 'r') as f:
-        data = json.load(f);
+        typePatients = data["patients"]
+        nPatients = int(data["n_patients"])
+        nDays = int(data["days"])
+        min_affinity = int(data["min_affinity"])
+        nSurgeons = int(data["surgeons"])
+        nFichas = int(data["fichas"])
+        time_limit = int(data["time_limit"])
+        bks = int(data["bks"])
 
-    typePatients = data["patients"];
-    nPatients = int(data["n_patients"]);
-    nDays = int(data["days"]);
-    min_affinity = int(data["min_affinity"]);
-    nSurgeons = int(data["surgeons"]);
-    nFichas = int(data["fichas"]);
-    time_limit = int(data["time_limit"]);
-    bks = int(data["bks"]);
+        load_data_and_config()
+        inicial = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts,
+                        nFichas, nSlot, SP, COIN, OT, alpha=args.GRASP_alpha, modo=1,
+                        VERSION="C", hablar=False)
 
-    load_data_and_config();
-    #inicial = normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, VERSION="C", hablar=False);
-    inicial = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, modo=1, VERSION="C", hablar=False);
+        aggregator = CSVMetaAggregator(report_secs,
+                                       "metaheuristic_checkpoints.csv",
+                                       instance_name)
 
-    start_time = time.time()
-    solutions = [];
-    all_iters     = [];
-    all_best_iters= [];
-    all_num_sched = [];
-    # prepare CSV checkpoint listener
-    listener = CSVMetaCheckpoint(report_secs, "metaheuristic_checkpoints.csv", instance_file)
-    for ejec in range(2):
-        best_solution, stats = metaheuristic(
-            inicial,
-            report_secs=report_secs,
-            listener=listener,
-            destruct_type=destruct_type,
-            destruct=destruct,
-            temp_inicial=temp_inicial,
-            alpha=alpha,
-            prob_CambiarPrimarios=prob_CambiarPrimarios,
-            prob_CambiarSecundarios=prob_CambiarSecundarios,
-            prob_MoverPaciente_bloque=prob_MoverPaciente_bloque,
-            prob_MoverPaciente_dia=prob_MoverPaciente_dia,
-            prob_EliminarPaciente=prob_EliminarPaciente,
-            prob_AgregarPaciente_1=prob_AgregarPaciente_1,
-            prob_AgregarPaciente_2=prob_AgregarPaciente_2,
-            prob_DestruirAgregar10=prob_DestruirAgregar10,
-            prob_DestruirAfinidad_Todos=prob_DestruirAfinidad_Todos,
-            prob_DestruirAfinidad_Uno=prob_DestruirAfinidad_Uno,
-            prob_PeorOR=prob_PeorOR,
-            prob_AniquilarAfinidad=prob_AniquilarAfinidad,
-            prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario,
-            prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
-            prob_AdelantarDia=prob_AdelantarDia,
-            prob_MejorOR=prob_MejorOR,
-            prob_AdelantarTodos=prob_AdelantarTodos,
-            prob_CambiarPaciente1=prob_CambiarPaciente1,
-            prob_CambiarPaciente2=prob_CambiarPaciente2,
-            prob_CambiarPaciente3=prob_CambiarPaciente3,
-            prob_CambiarPaciente4=prob_CambiarPaciente4,
-            prob_CambiarPaciente5=prob_CambiarPaciente5,
-            prob_DestruirOR=prob_DestruirOR,
-            prob_elite=prob_elite,
-            prob_GRASP=prob_GRASP,
-            prob_normal=prob_normal,
-            prob_Pert=prob_Pert,
-            prob_Busq=prob_Busq,
-            BusqTemp=BusqTemp,
-            semilla=ejec,
-            GRASP_alpha=GRASP_alpha,
-            elite_size=elite_size,
-            prob_GRASP1=prob_GRASP1,
-            prob_GRASP2=prob_GRASP2,
-            prob_GRASP3=prob_GRASP3,
-            acceptance_criterion=acceptance_criterion
-        );
-        promedio, mejor, prom_gap, mej_gap, tiempo, avg_iter, best_iter, num_sched = meta_test.main() if False else (None,None,None,None,None, None,None,None)
-        _,_,_,_, avg_iter, best_iter, num_sched = stats
-        solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
-        all_iters.append(avg_iter)
-        all_best_iters.append(best_iter)
-        all_num_sched.append(num_sched)
-    elapsed = time.time() - start_time
-    #final_cost = EvalAllORs(best_solution[0], VERSION="C")
-    #print(final_cost)
-    print(np.mean(solutions))
+        solutions = []
+        all_iters = []
+        all_best_iters = []
+        all_num_sched = []
 
-    #Para comprobador.py
-    mean_iters      = int(np.round(np.mean(all_iters)))
-    mean_best_iter  = int(np.round(np.mean(all_best_iters)))
-    mean_num_sched  = int(np.round(np.mean(all_num_sched)))
-    return (
-        -1*np.round(np.mean(solutions), 5),
-        -1*min(solutions),
-        1 - (-1*np.mean(solutions)/bks),
-        1 - (-1*min(solutions)/bks),
-        elapsed,
-        mean_iters,
-        mean_best_iter,
-        mean_num_sched)
+        for ejec in seeds:
+            # fresh listener for this specific run
+            listener = RunCheckpoint(report_secs, aggregator)
+            best_solution, stats = metaheuristic(
+                inicial,
+                report_secs=report_secs,
+                listener=listener,
+                destruct_type=args.destruct_type,
+                destruct=args.destruct,
+                temp_inicial=args.temp_inicial,
+                alpha=args.alpha,
+                prob_CambiarPrimarios=args.prob_CambiarPrimarios,
+                prob_CambiarSecundarios=args.prob_CambiarSecundarios,
+                prob_MoverPaciente_bloque=args.prob_MoverPaciente_bloque,
+                prob_MoverPaciente_dia=args.prob_MoverPaciente_dia,
+                prob_EliminarPaciente=args.prob_EliminarPaciente,
+                prob_AgregarPaciente_1=args.prob_AgregarPaciente_1,
+                prob_AgregarPaciente_2=args.prob_AgregarPaciente_2,
+                prob_DestruirAgregar10=args.prob_DestruirAgregar10,
+                prob_DestruirAfinidad_Todos=args.prob_DestruirAfinidad_Todos,
+                prob_DestruirAfinidad_Uno=args.prob_DestruirAfinidad_Uno,
+                prob_PeorOR=args.prob_PeorOR,
+                prob_AniquilarAfinidad=args.prob_AniquilarAfinidad,
+                prob_MejorarAfinidad_primario=args.prob_MejorarAfinidad_primario,
+                prob_MejorarAfinidad_secundario=args.prob_MejorarAfinidad_secundario,
+                prob_AdelantarDia=args.prob_AdelantarDia,
+                prob_MejorOR=args.prob_MejorOR,
+                prob_AdelantarTodos=args.prob_AdelantarTodos,
+                prob_CambiarPaciente1=args.prob_CambiarPaciente1,
+                prob_CambiarPaciente2=args.prob_CambiarPaciente2,
+                prob_CambiarPaciente3=args.prob_CambiarPaciente3,
+                prob_CambiarPaciente4=args.prob_CambiarPaciente4,
+                prob_CambiarPaciente5=args.prob_CambiarPaciente5,
+                prob_DestruirOR=args.prob_DestruirOR,
+                prob_elite=args.prob_elite,
+                prob_GRASP=args.prob_GRASP,
+                prob_normal=args.prob_normal,
+                prob_Pert=1,
+                prob_Busq=args.prob_Busq,
+                BusqTemp=args.BusqTemp,
+                semilla=ejec,
+                GRASP_alpha=args.GRASP_alpha,
+                elite_size=args.elite_size,
+                prob_GRASP1=args.prob_GRASP1,
+                prob_GRASP2=args.prob_GRASP2,
+                prob_GRASP3=args.prob_GRASP3,
+                acceptance_criterion=args.acceptance_criterion
+            )
+
+            _,_,_,_, avg_iter, best_iter, num_sched = stats
+            solutions.append(EvalAllORs(best_solution[0], VERSION="C"))
+            all_iters.append(avg_iter)
+            all_best_iters.append(best_iter)
+            all_num_sched.append(num_sched)
+
+        aggregator.finalize()
+
+        print(f"{instance_file}  |  mean_cost: {-np.mean(solutions):.5f}  "
+              f"mean_gap: {1 - (-np.mean(solutions)/bks):.5f}")
+    print(f"Total elapsed: {time.time()-overall_start:.1f} s")
 
 if __name__ == "__main__":
     main()
+
+#python meta_test2.py --destruct 200 --temp_inicial 800.0 --alpha 0.99 --prob_CambiarPrimarios 0.15 --prob_CambiarSecundarios 0.15 --prob_MoverPaciente_bloque 0.20 --prob_MoverPaciente_dia 0.10 --prob_EliminarPaciente 0.20 --prob_AgregarPaciente_1 0.19 --prob_AgregarPaciente_2 0.19 --prob_DestruirAgregar10 0.02 --prob_DestruirAfinidad_Todos 0.02 --prob_DestruirAfinidad_Uno 0.02 --prob_PeorOR 0.02 --prob_AniquilarAfinidad 0.05 --prob_MejorarAfinidad_primario 0.20 --prob_MejorarAfinidad_secundario 0.20 --prob_AdelantarDia 0.29 --prob_MejorOR 0.29 --prob_AdelantarTodos 0.02 --prob_CambiarPaciente1 0.10 --prob_CambiarPaciente2 0.10 --prob_CambiarPaciente3 0.10 --prob_CambiarPaciente4 0.10 --prob_CambiarPaciente5 0.10 --destruct_type 1 --prob_DestruirOR 0.20 --prob_elite 0.30 --prob_GRASP 0.30 --prob_normal 0.20 --prob_Busq 1.0 --BusqTemp yes --GRASP_alpha 0.1 --elite_size 5 --prob_GRASP1 0.30 --prob_GRASP2 0.30 --prob_GRASP3 0.40 --acceptance_criterion SA --report_minutes "0.1,0.3,0.5"

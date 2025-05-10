@@ -2,7 +2,7 @@
 import sys, warnings, json, pandas as pd, random, numpy as np, time, copy, math, importlib, argparse
 from pathlib import Path
 class CSVCheckpoint:
-    def __init__(self, secs, csv_path, instance):
+    def __init__(self, secs, csv_path, instance, aggregator=None):
         self.secs = sorted(secs)
         self.targetfile = Path(csv_path)
         self.instance = instance
@@ -19,6 +19,7 @@ class CSVCheckpoint:
         self.max_no_improvement = 1000
         self.total_iterations = 0        # never resets
         self.iter_best_global = 0        # absolute iteration of best_gap
+        self.aggregator = aggregator
 
     def notify(self, elapsed, gap):
         """
@@ -43,27 +44,83 @@ class CSVCheckpoint:
 
         avg_gap = sum(self.gaps) / len(self.gaps)
 
-        pd.DataFrame([{
-            "instance": self.instance,
-            "time": elapsed,
-            "best_gap": self.best_gap,
-            "avg_gap": avg_gap,
-            "iterations": self.total_iterations,
-            "iter_best": self.iter_best_global
-        }]).to_csv(
-            self.targetfile,
-            mode="a",
-            index=False,
-            header=self.first
-        )
-        self.first = False
+        row_best = self.best_gap
+        row_avg  = avg_gap
+        row_iter = self.total_iterations
+        row_iter_best = self.iter_best_global
+
+        if self.aggregator is not None:
+            # forward to aggregator instead of writing
+            self.aggregator.add(self.next_idx,
+                                row_best, row_avg,
+                                row_iter, row_iter_best)
+        else:
+            pd.DataFrame([{
+                "instance": self.instance,
+                "time": elapsed,
+                "best_gap": row_best,
+                "avg_gap":  row_avg,
+                "iterations": row_iter,
+                "iter_best": row_iter_best
+            }]).to_csv(
+                self.targetfile,
+                mode="a",
+                index=False,
+                header=self.first
+            )
+            self.first = False
         self.next_idx += 1
 
     def should_restart(self):
+        """Return True if the no‑improvement counter reached its limit."""
         return self.no_improvement_count >= self.max_no_improvement
 
     def reset(self):
+        """Reset the no‑improvement counter after a restart."""
         self.no_improvement_count = 0
+class CSVCheckpointAggregator:
+    """Aggregate checkpoint stats across many runs, then write averaged rows."""
+    def __init__(self, secs, csv_path, instance):
+        self.secs       = secs
+        self.targetfile = Path(csv_path)
+        self.instance   = instance
+        self.data       = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[]) for _ in secs]
+        self.first      = not self.targetfile.exists()
+
+    def add(self, idx, best_gap, avg_gap, iterations, iter_best):
+        self.data[idx]["best_gaps"].append(best_gap)
+        self.data[idx]["avg_gaps"].append(avg_gap)
+        self.data[idx]["iterations"].append(iterations)
+        self.data[idx]["iter_bests"].append(iter_best)
+
+    def finalize(self):
+        rows = []
+        for idx, sec in enumerate(self.secs):
+            bucket = self.data[idx]
+            if not bucket["best_gaps"]:
+                continue
+            avg_gap      = sum(bucket["avg_gaps"]) / len(bucket["avg_gaps"])
+            iterations   = int(sum(bucket["iterations"]) / len(bucket["iterations"]))
+            best_gap     = min(bucket["best_gaps"])
+            best_idx     = bucket["best_gaps"].index(best_gap)
+            iter_best    = bucket["iter_bests"][best_idx]
+            rows.append({
+                "instance": self.instance,
+                "time": sec,
+                "best_gap": best_gap,
+                "avg_gap":  avg_gap,
+                "iterations": iterations,
+                "iter_best": iter_best
+            })
+        if rows:
+            pd.DataFrame(rows).to_csv(
+                self.targetfile,
+                mode="a",
+                index=False,
+                header=self.first
+            )
+            self.first = False
+
 
 warnings.filterwarnings("ignore")
 
@@ -540,15 +597,13 @@ def main():
         parser.add_argument(f"--prob_{s}",type=float,default=10.0)
     args = parser.parse_args()
     report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()] if args.report_minutes.strip() else []
-    
-    
-    for i in range(1, 4):
+    seeds = list(range(10))
+    for i in range(1, 16):
         try:
-            # fresh listener per instance so next_idx and counters start from zero
-            checkpoint_listener = CSVCheckpoint(report_secs, "sa_checkpoints.csv", f"instance{i}")
+            aggregator = CSVCheckpointAggregator(report_secs, "sa_checkpoints.csv", f"instance{i}")
             with open(f"../irace/instances/instance{i}.json",'r') as f:
                 data = json.load(f)
-            
+
             global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot
             typePatients = data["patients"]
             nPatients = int(data["n_patients"])
@@ -558,33 +613,44 @@ def main():
             nFichas = int(data["fichas"])
             min_affinity = int(data["min_affinity"])
             time_limit = int(data["time_limit"])
-            
+
             load_data_and_config()
             initial = GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,
                           SP,COIN,OT,alpha=0.2,modo=1,VERSION="C",hablar=False)
-            
+
             if initial is None:
                 print(f"Warning: Could not generate initial solution for instance {i}, skipping...")
                 continue
-                
+
             pert_probs = [getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
                       "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
                       "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]]
             ls_probs = [getattr(args,f"prob_{s}") for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
                       "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
                       "CambiarPaciente4","CambiarPaciente5"]]
-            
-            best = sa(initial,
-                      args.temp_inicial,
-                      args.alpha,
-                      pert_probs,
-                      ls_probs,
-                      args.seed,
-                      report_secs=report_secs,
-                      time_limit=time_limit,
-                      listener=checkpoint_listener,
-                      iterations=args.iterations if not report_secs else None)
-            print(f"Instance {i}: {EvalAllORs(best[0], VERSION='C')}")
+
+            solutions = []
+            for ejec in seeds:
+                checkpoint_listener = CSVCheckpoint(
+                    report_secs,
+                    "sa_checkpoints.csv",
+                    f"instance{i}",
+                    aggregator=aggregator)
+                best = sa(initial,
+                          args.temp_inicial,
+                          args.alpha,
+                          pert_probs,
+                          ls_probs,
+                          ejec,                # seed per run
+                          report_secs=report_secs,
+                          time_limit=time_limit,
+                          listener=checkpoint_listener,
+                          iterations=args.iterations if not report_secs else None)
+                solutions.append(EvalAllORs(best[0], VERSION="C"))
+            aggregator.finalize()
+            print(f"Instance {i}: mean_cost = {-np.mean(solutions):.5f}, "
+                  f"mean_gap = {1 - (-np.mean(solutions)/bks):.5f}")
+            # print(f"Instance {i}: {EvalAllORs(best[0], VERSION='C')}")
         except Exception as e:
             print(f"Error processing instance {i}: {str(e)}")
             continue
