@@ -1,0 +1,7 @@
+docplex
+cplex
+numpy
+pandas
+openpyxl
+xlrd
+psutil

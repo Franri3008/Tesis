@@ -53,14 +53,11 @@ class CSVMetaCheckpoint:
         self.first = False;
         self.next_idx += 1;
 
-# Aggregator for checkpoint data across runs
 class CSVMetaAggregator:
-    """Collects checkpoint data from many runs, then writes one averaged row per scheduled time."""
     def __init__(self, secs, csv_path, instance):
         self.secs       = secs
         self.targetfile = Path(csv_path)
         self.instance   = instance
-        # one bucket per checkpoint index
         self.data = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[]) for _ in secs]
         self.first = not self.targetfile.exists()
 
@@ -75,12 +72,9 @@ class CSVMetaAggregator:
         for idx, sec in enumerate(self.secs):
             bucket = self.data[idx]
             if not bucket["best_gaps"]:
-                # nothing collected for this checkpoint
                 continue
-            # average values
             avg_gap = sum(bucket["avg_gaps"]) / len(bucket["avg_gaps"])
             iterations = int(sum(bucket["iterations"]) / len(bucket["iterations"]))
-            # choose best gap and its corresponding iter_best
             best_gap = min(bucket["best_gaps"])
             best_idx = bucket["best_gaps"].index(best_gap)
             iter_best = bucket["iter_bests"][best_idx]
@@ -101,9 +95,7 @@ class CSVMetaAggregator:
             )
             self.first = False
 
-# Per-run listener that forwards to aggregator
 class RunCheckpoint:
-    """Acts like CSVMetaCheckpoint but forwards data to a CSVMetaAggregator."""
     def __init__(self, secs, aggregator):
         self.secs = secs
         self.agg  = aggregator
@@ -111,11 +103,9 @@ class RunCheckpoint:
         self.iter_best_global = 0
 
     def update_best(self, iteration, gap):
-        # Store the iteration where current run achieved its best gap
         self.iter_best_global = iteration
 
     def notify(self, elapsed, best_gap, avg_gap, iteration):
-        # Forward only at scheduled checkpoints
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
         self.agg.add(self.next_idx, best_gap, avg_gap, iteration, self.iter_best_global)
@@ -670,10 +660,6 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
     i = 0
     while True:
         i += 1
-        if random.uniform(0, 1) < prob_Pert * (1 - T/temp_inicial):
-            new_sol, last_p = Perturbar(current_sol);
-        else:
-            new_sol, last_p = copy.deepcopy(current_sol), "NoOp";
         if BusqTemp == 0:
             if random.uniform(0, 1) < prob_Busq:
                 new_sol, last_s = BusquedaLocal(new_sol);
