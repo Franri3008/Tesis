@@ -11,10 +11,16 @@ import pandas as pd
 import random
 import numpy as np
 import time
+from pathlib import Path
 
 warnings.filterwarnings("ignore");
     
 #config = data["configurations"];
+
+global_ilp_checkpoint_csv_path = Path("../output/LPM/LPM_checkpoints.csv");
+global_ilp_checkpoint_csv_path.parent.mkdir(parents=True, exist_ok=True);
+if global_ilp_checkpoint_csv_path.exists():
+    global_ilp_checkpoint_csv_path.unlink();
                     
 dfSurgeon = pd.read_excel("../input/MAIN_SURGEONS.xlsx", sheet_name='surgeon', converters={'n°':int}, index_col=[0]);
 dfSecond = pd.read_excel("../input/SECOND_SURGEONS.xlsx", sheet_name='second', converters={'n°':int}, index_col=[0]);
@@ -114,7 +120,7 @@ for i in range(num_ext):
 
 first = True;
 #for INS in config:
-for iii in range(1, 4):
+for iii in range(1, 16):
     
     entrada = f"instance{iii}";
     if testing == False:
@@ -764,7 +770,7 @@ for iii in range(1, 4):
     time_inicio = time.time();
     #mdl.parameters.timelimit = time_limit;
     #mdl.parameters.timelimit = 150;
-    #mdl.parameters.threads = 2;
+    mdl.parameters.threads = 1;
 
     ########### Solución Inicial
     import math
@@ -808,83 +814,182 @@ for iii in range(1, 4):
         #validar_solucion_inicial(mdl, warmstart);
         mdl.add_mip_start(warmstart);
 
-        from pathlib import Path
-        from docplex.mp.progress import ProgressListener, ProgressClock
-        import pandas as pd, math, os
+    def _calculate_gap_vs_bks_ilp(obj, bks_value):
+        if obj is None or bks_value is None or math.isinf(obj) or math.isinf(bks_value):
+            return None;
+        denominator = abs(bks_value);
+        if denominator < 1e-9:
+            return 0.0 if abs(obj) < 1e-9 else None;
+        try:
+            return (bks_value - obj) / denominator;
+        except Exception:
+            return None;
+        return None;
 
-    class CSVCheckpoint(ProgressListener):
-        def __init__(self, secs, csv_path, instance):
-            super().__init__(ProgressClock.All)
-            self.secs       = sorted(secs)
-            self.targetfile = Path(csv_path)
-            self.instance   = instance
-            self.next_idx   = 0
-            self.targetfile.parent.mkdir(parents=True, exist_ok=True)
-            self.first = not self.targetfile.exists()
-            self.best_gap = float('inf')
-            self.best_gap_iter = 0
-            self.total_gap = 0
-            self.gap_count = 0
-            self.max_iter = 0
+    chk_times = [30, 45, 60];
+    '''
+    if 'time_limit' in locals() and isinstance(time_limit, (int, float)):
+        actual_time_limit = float(time_limit);
+        chk_times = [t for t in chk_times if t <= actual_time_limit];
+        if actual_time_limit not in chk_times and (not chk_times or actual_time_limit > chk_times[-1]):
+            chk_times.append(actual_time_limit);
+        chk_times = sorted(list(set(chk_times)));
+    else:
+        print(f"Warning: 'time_limit' not properly defined for instance {entrada}. Using default checkpoints.");
+        actual_time_limit = chk_times[-1] if chk_times else 300;
+    '''
 
-        def _rel_gap(self, pdata):
-            if hasattr(pdata, "relative_gap"):
-                return pdata.relative_gap
-            if hasattr(pdata, "mip_rel_gap"):
-                return pdata.mip_rel_gap
-            if (getattr(pdata, "current_objective", None) not in (None, 0, math.inf)
-                    and getattr(pdata, "best_bound", None) not in (None, math.inf)):
-                return abs(pdata.current_objective - pdata.best_bound) / abs(pdata.current_objective)
-            return None
+    actual_time_limit = chk_times[-1] + 5;
 
-        def notify_progress(self, pdata):
-            current_gap = self._rel_gap(pdata)
-            if current_gap is not None:
-                if current_gap < self.best_gap:
-                    self.best_gap = current_gap
-                    self.best_gap_iter = getattr(pdata, "current_iter", 0)
-                self.total_gap += current_gap
-                self.gap_count += 1
-            self.max_iter = max(self.max_iter, getattr(pdata, "current_iter", 0))
-            if self.next_idx == len(self.secs) or pdata.time < self.secs[self.next_idx]:
-                return
+    seg_durs = [];
+    prev_chk_time_for_seg_calc = 0;
+    for t_chk_for_seg_calc in chk_times:
+        duration = t_chk_for_seg_calc - prev_chk_time_for_seg_calc;
+        if duration > 1e-6:
+            seg_durs.append(duration);
+        prev_chk_time_for_seg_calc = t_chk_for_seg_calc;
 
+    if not seg_durs and actual_time_limit > 1e-6:
+        seg_durs = [actual_time_limit];
+        if not chk_times or chk_times[-1] != actual_time_limit : chk_times = [actual_time_limit];
+
+    log_data_for_this_ilp_instance = [];
+    warm_start_sol_for_ilp_instance = None;
+
+    global_best_obj_for_ilp_instance = None;
+    global_best_gap_vs_bks_for_ilp_instance = None;
+    cumulative_solver_time_for_ilp_instance = 0.0;
+    last_obj_found_for_ilp_instance = None;
+
+    final_sol_object_from_iterative_solve = None;
+    final_solve_details_for_solucion = None;
+    final_status_name_for_solucion = None;
+
+    mdl.parameters.threads.set(1);
+
+    if not seg_durs:
+        print(f"Instance {entrada}: No segments to run (time limit {actual_time_limit}s might be too short or zero).");
+    else:
+        for i_seg, seg_dur_val in enumerate(seg_durs):
+            remaining_time_for_solve = actual_time_limit - cumulative_solver_time_for_ilp_instance;
+            current_segment_timelimit = min(seg_dur_val, remaining_time_for_solve);
+
+            if current_segment_timelimit <= 1e-6:
+                print(f"Instance {entrada}: Negligible time left ({current_segment_timelimit:.2f}s) for segment {i_seg+1}. Skipping.");
+                break;
+
+            print(f"--- ILP Instance {entrada}: Segment {i_seg+1}/{len(seg_durs)}, requested duration: {current_segment_timelimit:.2f}s ---");
+            mdl.parameters.timelimit.set(float(current_segment_timelimit));
+
+            if warm_start_sol_for_ilp_instance:
+                try:
+                    mdl.add_mip_start(warm_start_sol_for_ilp_instance);
+                    print(f"Instance {entrada}: MIP start applied for segment {i_seg+1}.");
+                except Exception as e_mip:
+                    print(f"Instance {entrada}: Error applying MIP start - {e_mip}");
+
+            sol_segment = None;
+            obj_current_segment_for_log = last_obj_found_for_ilp_instance;
+            current_segment_status_name = "SolveNotAttemptedOrFailedEarly";
+            segment_actual_solve_time = 0.0;
+
+            try:
+                sol_segment = mdl.solve(log_output=False);
+
+                segment_actual_solve_time = mdl.solve_details.time if mdl.solve_details else 0.0;
+                current_segment_status_name = mdl.get_solve_status().name if mdl.get_solve_status() else "StatusUnavailable";
+
+                if sol_segment:
+                    if current_segment_status_name in ['OPTIMAL_SOLUTION', 'FEASIBLE_SOLUTION']:
+                        obj_current_segment_for_log = sol_segment.objective_value;
+                        last_obj_found_for_ilp_instance = obj_current_segment_for_log;
+
+                        final_sol_object_from_iterative_solve = sol_segment;
+                        final_solve_details_for_solucion = mdl.solve_details;
+                        final_status_name_for_solucion = current_segment_status_name;
+
+                        new_mip_start_solution = mdl.new_solution();
+                        populated_vars_count = 0;
+                        for var, val in sol_segment.iter_var_values():
+                            new_mip_start_solution.add_var_value(var, val);
+                            populated_vars_count += 1;
+
+                        if populated_vars_count > 0:
+                            warm_start_sol_for_ilp_instance = new_mip_start_solution;
+                            print(f"Instance {entrada}: Feasible/Optimal solution. Obj={obj_current_segment_for_log:.2f}. Status: {current_segment_status_name}. MIP start updated.");
+                        else:
+                            print(f"Instance {entrada}: Feasible/Optimal status ({current_segment_status_name}) but no vars in iter_var_values. Obj={obj_current_segment_for_log:.2f}. MIP start not updated.");
+
+                        if global_best_obj_for_ilp_instance is None or \
+                        (obj_current_segment_for_log is not None and obj_current_segment_for_log > global_best_obj_for_ilp_instance):
+                            global_best_obj_for_ilp_instance = obj_current_segment_for_log;
+                    else:
+                        print(f"Instance {entrada}: Segment ended with status: {current_segment_status_name}. No new feasible solution. Using last Obj: {obj_current_segment_for_log}");
+                else:
+                    print(f"Instance {entrada}: Solver returned no solution object (sol_segment is None). Status: {current_segment_status_name}. Using last Obj: {obj_current_segment_for_log}");
+
+            except Exception as e_solve:
+                print(f"Instance {entrada}: EXCEPTION during mdl.solve() or processing for segment {i_seg+1}: {e_solve}");
+                current_segment_status_name = f"ExceptionInSolve: {type(e_solve).__name__}";
+
+            cumulative_solver_time_for_ilp_instance += segment_actual_solve_time;
+
+            gap_vs_bks_c = _calculate_gap_vs_bks_ilp(obj_current_segment_for_log, bks);
+            if obj_current_segment_for_log is not None and gap_vs_bks_c is not None:
+                current_obj_is_better_for_gap = False;
+                if global_best_gap_vs_bks_for_ilp_instance is None:
+                    current_obj_is_better_for_gap = True;
+                elif gap_vs_bks_c < 0:
+                    if global_best_gap_vs_bks_for_ilp_instance >= 0:
+                        current_obj_is_better_for_gap = True;
+                    elif gap_vs_bks_c > global_best_gap_vs_bks_for_ilp_instance:
+                        current_obj_is_better_for_gap = True;
+                elif gap_vs_bks_c >= 0 and gap_vs_bks_c < global_best_gap_vs_bks_for_ilp_instance:
+                    current_obj_is_better_for_gap = True;
+
+                if current_obj_is_better_for_gap:
+                    global_best_gap_vs_bks_for_ilp_instance = gap_vs_bks_c;
+
+            target_cumulative_time_log = chk_times[i_seg] if i_seg < len(chk_times) else cumulative_solver_time_for_ilp_instance;
             row = {
-                "instance":   self.instance,
-                "time":       pdata.time,
-                "objective":  getattr(pdata, "current_objective", None),
-                "best_bound": getattr(pdata, "best_bound", None),
-                "gap":        self._rel_gap(pdata),
-                "best_gap": self.best_gap if self.best_gap != float('inf') else None,
-                "best_gap_iter": self.best_gap_iter,
-                "avg_gap": self.total_gap / self.gap_count if self.gap_count > 0 else None,
-                "max_iter": self.max_iter
-            }
+                'instance': entrada,
+                'time': target_cumulative_time_log,
+                'objective': obj_current_segment_for_log,
+                'gap': gap_vs_bks_c,
+                'best_gap': global_best_gap_vs_bks_for_ilp_instance,
+                'best_obj': global_best_obj_for_ilp_instance,
+            };
+            log_data_for_this_ilp_instance.append(row);
+            print(f"Instance {entrada}: Logged at time {target_cumulative_time_log:.2f}s. Obj: {obj_current_segment_for_log}, Gap: {gap_vs_bks_c}, BestGap: {global_best_gap_vs_bks_for_ilp_instance}, BestObj: {global_best_obj_for_ilp_instance}");
 
-            pd.DataFrame([row]).to_csv(
-                self.targetfile,
-                mode='a',
-                index=False,
-                header=self.first
-            )
-            self.first = False
-            self.next_idx += 1
+            if cumulative_solver_time_for_ilp_instance >= actual_time_limit - 1e-6 :
+                print(f"Instance {entrada}: Cumulative solver time ({cumulative_solver_time_for_ilp_instance:.2f}s) reached total time limit ({actual_time_limit}s). Stopping iterative solve.");
+                break;
 
-    checkpoints = [60, 120, 180]
-    listener = CSVCheckpoint(checkpoints, "ilp_checkpoints.csv", entrada);
-    mdl.add_progress_listener(listener)
+    if log_data_for_this_ilp_instance:
+        df_instance_checkpoints = pd.DataFrame(log_data_for_this_ilp_instance);
+        write_header = not global_ilp_checkpoint_csv_path.exists() or global_ilp_checkpoint_csv_path.stat().st_size == 0;
+        df_instance_checkpoints.to_csv(global_ilp_checkpoint_csv_path, mode='a', header=write_header, index=False);
+        print(f"ILP Checkpoint data for instance {entrada} appended to {global_ilp_checkpoint_csv_path}");
 
-    #sol=mdl.solve(log_output=True);
-    mdl.parameters.timelimit = checkpoints[-1] + 10;
-    solucion = mdl.solve(log_output=True);
+    print(f"Total CPLEX solver time across all segments for ILP instance {entrada}: {cumulative_solver_time_for_ilp_instance:.2f} seconds.");
+
+    if final_sol_object_from_iterative_solve:
+        solucion = final_sol_object_from_iterative_solve;
+        print(f"Instance {entrada}: Using final solution object from iterative solve. Associated status: {final_status_name_for_solucion}, Obj: {solucion.objective_value if hasattr(solucion, 'objective_value') and solucion.has_objective() else 'N/A'}");
+    else:
+        print(f"Instance {entrada}: No feasible solution found throughout iterative solving. 'solucion' will be an empty solution object.");
+        solucion = mdl.new_solution();
+        if not seg_durs:
+            final_status_name_for_solucion = "NoSolveAttempted";
+        else:
+            final_status_name_for_solucion = mdl.get_solve_status().name if mdl.get_solve_status() else "StatusUnavailableAfterLoop";
     
     memoria_usada = np.around(psutil.Process().memory_info().rss / 10**6, decimals=2);
     print("Memoria usada:", memoria_usada, "megabytes");
     
-    #list_sol[14] = str(memoria_usada) + "\n";
     dict_sol["Memoria"] = [memoria_usada];
 
-    #print('status:',mdl.get_solve_status());
     if str(mdl.get_solve_status()) == "JobSolveStatus.OPTIMAL_SOLUTION":
         #list_sol[5] = "Opt";
         dict_sol["Status"] = ["Opt"];
