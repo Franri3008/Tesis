@@ -1748,7 +1748,7 @@ struct __pyx_opt_args_10evaluation_EvalAllORs;
 /* "evaluation.pyx":101
  *     return <double>(nDays_val_param // (day_idx_val + 1));
  * 
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,             # <<<<<<<<<<<<<<
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,             # <<<<<<<<<<<<<<
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,
 */
@@ -2834,7 +2834,6 @@ static PyObject *__pyx_builtin_print;
 static PyObject *__pyx_builtin_ImportError;
 /* #### Code section: string_decls ### */
 static const char __pyx_k_[] = ".";
-static const char __pyx_k_A[] = "A";
 static const char __pyx_k_C[] = "C";
 static const char __pyx_k_OR[] = "[OR=";
 static const char __pyx_k__2[] = ").";
@@ -2953,7 +2952,7 @@ typedef struct {
   __Pyx_CachedCFunction __pyx_umethod_PyDict_Type_pop;
   PyObject *__pyx_tuple[1];
   PyObject *__pyx_codeobj_tab[1];
-  PyObject *__pyx_string_tab[60];
+  PyObject *__pyx_string_tab[59];
   PyObject *__pyx_float_0_0;
   PyObject *__pyx_float_1_0;
   PyObject *__pyx_int_0;
@@ -2994,65 +2993,64 @@ static __pyx_mstatetype * const __pyx_mstate_global = &__pyx_mstate_global_stati
 #endif
 /* #### Code section: constant_name_defines ### */
 #define __pyx_kp_u_ __pyx_string_tab[0]
-#define __pyx_n_u_A __pyx_string_tab[1]
-#define __pyx_n_u_C __pyx_string_tab[2]
-#define __pyx_kp_u_Cirujano __pyx_string_tab[3]
-#define __pyx_n_u_EvalAllORs __pyx_string_tab[4]
-#define __pyx_kp_u_Fichas_restantes_por_cirujano_da __pyx_string_tab[5]
-#define __pyx_n_u_I_obj __pyx_string_tab[6]
-#define __pyx_n_u_ImportError __pyx_string_tab[7]
-#define __pyx_kp_u_Logic_error_p_idx __pyx_string_tab[8]
-#define __pyx_kp_u_Note_that_Cython_is_deliberately __pyx_string_tab[9]
-#define __pyx_kp_u_OR __pyx_string_tab[10]
-#define __pyx_n_u_OT_obj __pyx_string_tab[11]
-#define __pyx_kp_u_Pen_Bloques_no_consecutivos_par __pyx_string_tab[12]
-#define __pyx_kp_u_Pen_Duracin_incorrecta_para_pac __pyx_string_tab[13]
-#define __pyx_kp_u_Penalizacin_Cirujano __pyx_string_tab[14]
-#define __pyx_kp_u_Penalizacin_Cirujano_principal __pyx_string_tab[15]
-#define __pyx_kp_u_Penalizacin_por_fichas_negativas __pyx_string_tab[16]
-#define __pyx_kp_u_Puntaje_final_despus_de_restar_f __pyx_string_tab[17]
-#define __pyx_n_u_SP_obj __pyx_string_tab[18]
-#define __pyx_kp_u_Score_parcial_OR __pyx_string_tab[19]
-#define __pyx_n_u_VERSION __pyx_string_tab[20]
-#define __pyx_kp_u__2 __pyx_string_tab[21]
-#define __pyx_kp_u__3 __pyx_string_tab[22]
-#define __pyx_kp_u__4 __pyx_string_tab[23]
-#define __pyx_kp_u_add_note __pyx_string_tab[24]
-#define __pyx_n_u_append __pyx_string_tab[25]
-#define __pyx_n_u_asyncio_coroutines __pyx_string_tab[26]
-#define __pyx_n_u_bks __pyx_string_tab[27]
-#define __pyx_n_u_class_getitem __pyx_string_tab[28]
-#define __pyx_n_u_cline_in_traceback __pyx_string_tab[29]
-#define __pyx_kp_u_da __pyx_string_tab[30]
-#define __pyx_n_u_day_py __pyx_string_tab[31]
-#define __pyx_n_u_dictCosts_obj __pyx_string_tab[32]
-#define __pyx_n_u_enumerate __pyx_string_tab[33]
-#define __pyx_n_u_evaluation __pyx_string_tab[34]
-#define __pyx_kp_u_evaluation_pyx __pyx_string_tab[35]
-#define __pyx_kp_u_fichas __pyx_string_tab[36]
-#define __pyx_n_u_func __pyx_string_tab[37]
-#define __pyx_n_u_hablar __pyx_string_tab[38]
-#define __pyx_n_u_is_coroutine __pyx_string_tab[39]
-#define __pyx_n_u_items __pyx_string_tab[40]
-#define __pyx_n_u_main __pyx_string_tab[41]
-#define __pyx_n_u_module __pyx_string_tab[42]
-#define __pyx_n_u_nDays_val __pyx_string_tab[43]
-#define __pyx_n_u_nFichas_val __pyx_string_tab[44]
-#define __pyx_n_u_nSlot_val __pyx_string_tab[45]
-#define __pyx_n_u_name __pyx_string_tab[46]
-#define __pyx_kp_u_no_coincide_con_paciente __pyx_string_tab[47]
-#define __pyx_kp_u_not_initialized_in_bloques_por __pyx_string_tab[48]
-#define __pyx_kp_u_numpy__core_multiarray_failed_to __pyx_string_tab[49]
-#define __pyx_kp_u_numpy__core_umath_failed_to_impo __pyx_string_tab[50]
-#define __pyx_n_u_pop __pyx_string_tab[51]
-#define __pyx_n_u_print __pyx_string_tab[52]
-#define __pyx_n_u_qualname __pyx_string_tab[53]
-#define __pyx_n_u_range __pyx_string_tab[54]
-#define __pyx_n_u_room_py __pyx_string_tab[55]
-#define __pyx_n_u_sol_py __pyx_string_tab[56]
-#define __pyx_n_u_sort __pyx_string_tab[57]
-#define __pyx_n_u_surgeon_py __pyx_string_tab[58]
-#define __pyx_n_u_test __pyx_string_tab[59]
+#define __pyx_n_u_C __pyx_string_tab[1]
+#define __pyx_kp_u_Cirujano __pyx_string_tab[2]
+#define __pyx_n_u_EvalAllORs __pyx_string_tab[3]
+#define __pyx_kp_u_Fichas_restantes_por_cirujano_da __pyx_string_tab[4]
+#define __pyx_n_u_I_obj __pyx_string_tab[5]
+#define __pyx_n_u_ImportError __pyx_string_tab[6]
+#define __pyx_kp_u_Logic_error_p_idx __pyx_string_tab[7]
+#define __pyx_kp_u_Note_that_Cython_is_deliberately __pyx_string_tab[8]
+#define __pyx_kp_u_OR __pyx_string_tab[9]
+#define __pyx_n_u_OT_obj __pyx_string_tab[10]
+#define __pyx_kp_u_Pen_Bloques_no_consecutivos_par __pyx_string_tab[11]
+#define __pyx_kp_u_Pen_Duracin_incorrecta_para_pac __pyx_string_tab[12]
+#define __pyx_kp_u_Penalizacin_Cirujano __pyx_string_tab[13]
+#define __pyx_kp_u_Penalizacin_Cirujano_principal __pyx_string_tab[14]
+#define __pyx_kp_u_Penalizacin_por_fichas_negativas __pyx_string_tab[15]
+#define __pyx_kp_u_Puntaje_final_despus_de_restar_f __pyx_string_tab[16]
+#define __pyx_n_u_SP_obj __pyx_string_tab[17]
+#define __pyx_kp_u_Score_parcial_OR __pyx_string_tab[18]
+#define __pyx_n_u_VERSION __pyx_string_tab[19]
+#define __pyx_kp_u__2 __pyx_string_tab[20]
+#define __pyx_kp_u__3 __pyx_string_tab[21]
+#define __pyx_kp_u__4 __pyx_string_tab[22]
+#define __pyx_kp_u_add_note __pyx_string_tab[23]
+#define __pyx_n_u_append __pyx_string_tab[24]
+#define __pyx_n_u_asyncio_coroutines __pyx_string_tab[25]
+#define __pyx_n_u_bks __pyx_string_tab[26]
+#define __pyx_n_u_class_getitem __pyx_string_tab[27]
+#define __pyx_n_u_cline_in_traceback __pyx_string_tab[28]
+#define __pyx_kp_u_da __pyx_string_tab[29]
+#define __pyx_n_u_day_py __pyx_string_tab[30]
+#define __pyx_n_u_dictCosts_obj __pyx_string_tab[31]
+#define __pyx_n_u_enumerate __pyx_string_tab[32]
+#define __pyx_n_u_evaluation __pyx_string_tab[33]
+#define __pyx_kp_u_evaluation_pyx __pyx_string_tab[34]
+#define __pyx_kp_u_fichas __pyx_string_tab[35]
+#define __pyx_n_u_func __pyx_string_tab[36]
+#define __pyx_n_u_hablar __pyx_string_tab[37]
+#define __pyx_n_u_is_coroutine __pyx_string_tab[38]
+#define __pyx_n_u_items __pyx_string_tab[39]
+#define __pyx_n_u_main __pyx_string_tab[40]
+#define __pyx_n_u_module __pyx_string_tab[41]
+#define __pyx_n_u_nDays_val __pyx_string_tab[42]
+#define __pyx_n_u_nFichas_val __pyx_string_tab[43]
+#define __pyx_n_u_nSlot_val __pyx_string_tab[44]
+#define __pyx_n_u_name __pyx_string_tab[45]
+#define __pyx_kp_u_no_coincide_con_paciente __pyx_string_tab[46]
+#define __pyx_kp_u_not_initialized_in_bloques_por __pyx_string_tab[47]
+#define __pyx_kp_u_numpy__core_multiarray_failed_to __pyx_string_tab[48]
+#define __pyx_kp_u_numpy__core_umath_failed_to_impo __pyx_string_tab[49]
+#define __pyx_n_u_pop __pyx_string_tab[50]
+#define __pyx_n_u_print __pyx_string_tab[51]
+#define __pyx_n_u_qualname __pyx_string_tab[52]
+#define __pyx_n_u_range __pyx_string_tab[53]
+#define __pyx_n_u_room_py __pyx_string_tab[54]
+#define __pyx_n_u_sol_py __pyx_string_tab[55]
+#define __pyx_n_u_sort __pyx_string_tab[56]
+#define __pyx_n_u_surgeon_py __pyx_string_tab[57]
+#define __pyx_n_u_test __pyx_string_tab[58]
 /* #### Code section: module_state_clear ### */
 #if CYTHON_USE_MODULE_STATE
 static CYTHON_SMALL_CODE int __pyx_m_clear(PyObject *m) {
@@ -3091,7 +3089,7 @@ static CYTHON_SMALL_CODE int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_ufunc);
   for (int i=0; i<1; ++i) { Py_CLEAR(clear_module_state->__pyx_tuple[i]); }
   for (int i=0; i<1; ++i) { Py_CLEAR(clear_module_state->__pyx_codeobj_tab[i]); }
-  for (int i=0; i<60; ++i) { Py_CLEAR(clear_module_state->__pyx_string_tab[i]); }
+  for (int i=0; i<59; ++i) { Py_CLEAR(clear_module_state->__pyx_string_tab[i]); }
   Py_CLEAR(clear_module_state->__pyx_float_0_0);
   Py_CLEAR(clear_module_state->__pyx_float_1_0);
   Py_CLEAR(clear_module_state->__pyx_int_0);
@@ -3135,7 +3133,7 @@ static CYTHON_SMALL_CODE int __pyx_m_traverse(PyObject *m, visitproc visit, void
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_ufunc);
   for (int i=0; i<1; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_tuple[i]); }
   for (int i=0; i<1; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_codeobj_tab[i]); }
-  for (int i=0; i<60; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_string_tab[i]); }
+  for (int i=0; i<59; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_string_tab[i]); }
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_float_0_0);
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_float_1_0);
   __Pyx_VISIT_CONST(traverse_module_state->__pyx_int_0);
@@ -6282,7 +6280,7 @@ static CYTHON_INLINE double __pyx_f_10evaluation_c_multiplicador_helper(int __py
  *     if (day_idx_val + 1) == 0: return 0.0; # Avoid division by zero
  *     return <double>(nDays_val_param // (day_idx_val + 1));             # <<<<<<<<<<<<<<
  * 
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,
 */
   __pyx_t_2 = (__pyx_v_day_idx_val + 1);
   if (unlikely(__pyx_t_2 == 0)) {
@@ -6315,7 +6313,7 @@ static CYTHON_INLINE double __pyx_f_10evaluation_c_multiplicador_helper(int __py
 /* "evaluation.pyx":101
  *     return <double>(nDays_val_param // (day_idx_val + 1));
  * 
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,             # <<<<<<<<<<<<<<
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,             # <<<<<<<<<<<<<<
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,
 */
@@ -6328,12 +6326,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
 static double __pyx_f_10evaluation_EvalAllORs(PyObject *__pyx_v_sol_py, CYTHON_UNUSED int __pyx_skip_dispatch, struct __pyx_opt_args_10evaluation_EvalAllORs *__pyx_optional_args) {
-  PyObject *__pyx_v_VERSION = ((PyObject*)__pyx_mstate_global->__pyx_n_u_A);
+  PyObject *__pyx_v_VERSION = ((PyObject*)__pyx_mstate_global->__pyx_n_u_C);
   int __pyx_v_hablar = ((int)0);
   double __pyx_v_nFichas_val = ((double)0.0);
 
   /* "evaluation.pyx":103
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,             # <<<<<<<<<<<<<<
  *                            object OT_obj=None, object I_obj=None, dict dictCosts_obj=None,
@@ -7117,7 +7115,7 @@ static double __pyx_f_10evaluation_EvalAllORs(PyObject *__pyx_v_sol_py, CYTHON_U
   /* "evaluation.pyx":101
  *     return <double>(nDays_val_param // (day_idx_val + 1));
  * 
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,             # <<<<<<<<<<<<<<
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,             # <<<<<<<<<<<<<<
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,
 */
@@ -7262,10 +7260,10 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
       if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "EvalAllORs", 0) < 0) __PYX_ERR(0, 101, __pyx_L3_error)
-      if (!values[1]) values[1] = __Pyx_NewRef(((PyObject*)__pyx_mstate_global->__pyx_n_u_A));
+      if (!values[1]) values[1] = __Pyx_NewRef(((PyObject*)__pyx_mstate_global->__pyx_n_u_C));
 
       /* "evaluation.pyx":103
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,             # <<<<<<<<<<<<<<
  *                            object OT_obj=None, object I_obj=None, dict dictCosts_obj=None,
@@ -7357,10 +7355,10 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         break;
         default: goto __pyx_L5_argtuple_error;
       }
-      if (!values[1]) values[1] = __Pyx_NewRef(((PyObject*)__pyx_mstate_global->__pyx_n_u_A));
+      if (!values[1]) values[1] = __Pyx_NewRef(((PyObject*)__pyx_mstate_global->__pyx_n_u_C));
 
       /* "evaluation.pyx":103
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,             # <<<<<<<<<<<<<<
  *                            object OT_obj=None, object I_obj=None, dict dictCosts_obj=None,
@@ -7399,7 +7397,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       /* "evaluation.pyx":101
  *     return <double>(nDays_val_param // (day_idx_val + 1));
  * 
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,             # <<<<<<<<<<<<<<
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,             # <<<<<<<<<<<<<<
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,
 */
@@ -8036,7 +8034,7 @@ __Pyx_RefNannySetupContext("PyInit_evaluation", 0);
   /* "evaluation.pyx":101
  *     return <double>(nDays_val_param // (day_idx_val + 1));
  * 
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,             # <<<<<<<<<<<<<<
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,             # <<<<<<<<<<<<<<
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,
 */
@@ -8115,7 +8113,6 @@ typedef struct {
 static const char * const __pyx_string_tab_encodings[] = { 0 };
 static const __Pyx_StringTabEntry __pyx_string_tab[] = {
   {__pyx_k_, sizeof(__pyx_k_), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_ */
-  {__pyx_k_A, sizeof(__pyx_k_A), 0, 1, 1}, /* PyObject cname: __pyx_n_u_A */
   {__pyx_k_C, sizeof(__pyx_k_C), 0, 1, 1}, /* PyObject cname: __pyx_n_u_C */
   {__pyx_k_Cirujano, sizeof(__pyx_k_Cirujano), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Cirujano */
   {__pyx_k_EvalAllORs, sizeof(__pyx_k_EvalAllORs), 0, 1, 1}, /* PyObject cname: __pyx_n_u_EvalAllORs */
@@ -8201,11 +8198,11 @@ static int __Pyx_InitCachedConstants(__pyx_mstatetype *__pyx_mstate) {
   /* "evaluation.pyx":101
  *     return <double>(nDays_val_param // (day_idx_val + 1));
  * 
- * cpdef double EvalAllORs(tuple sol_py, str VERSION="A", bint hablar=False,             # <<<<<<<<<<<<<<
+ * cpdef double EvalAllORs(tuple sol_py, str VERSION="C", bint hablar=False,             # <<<<<<<<<<<<<<
  *                            # Parameters that were global
  *                            double nFichas_val=0.0, list day_py=None, list surgeon_py=None, list room_py=None,
 */
-  __pyx_mstate_global->__pyx_tuple[0] = PyTuple_Pack(13, __pyx_mstate_global->__pyx_n_u_A, Py_False, __pyx_mstate_global->__pyx_float_0_0, Py_None, Py_None, Py_None, Py_None, Py_None, Py_None, __pyx_mstate_global->__pyx_int_0, __pyx_mstate_global->__pyx_int_0, Py_None, __pyx_mstate_global->__pyx_float_1_0); if (unlikely(!__pyx_mstate_global->__pyx_tuple[0])) __PYX_ERR(0, 101, __pyx_L1_error)
+  __pyx_mstate_global->__pyx_tuple[0] = PyTuple_Pack(13, __pyx_mstate_global->__pyx_n_u_C, Py_False, __pyx_mstate_global->__pyx_float_0_0, Py_None, Py_None, Py_None, Py_None, Py_None, Py_None, __pyx_mstate_global->__pyx_int_0, __pyx_mstate_global->__pyx_int_0, Py_None, __pyx_mstate_global->__pyx_float_1_0); if (unlikely(!__pyx_mstate_global->__pyx_tuple[0])) __PYX_ERR(0, 101, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_mstate_global->__pyx_tuple[0]);
   __Pyx_GIVEREF(__pyx_mstate_global->__pyx_tuple[0]);
   __Pyx_RefNannyFinishContext();

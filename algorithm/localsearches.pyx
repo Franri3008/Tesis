@@ -178,9 +178,7 @@ cpdef object AdelantarDia(object solucion, object surgeon, object second, object
 
     for p in scheduled:
         start_blk_orig = pacientes_copy[p];
-        # Ensure start_blk_orig is a valid key before accessing primarios_copy/secundarios_copy
         if start_blk_orig not in primarios_copy or start_blk_orig not in secundarios_copy:
-            # This case should ideally not happen if the solution is consistent
             # print(f"[AdelantarDia] Warning: Patient {p} has start_blk {start_blk_orig} not in primarios/secundarios. Skipping.") if hablar else None;
             continue;
             
@@ -194,14 +192,12 @@ cpdef object AdelantarDia(object solucion, object surgeon, object second, object
 
         for new_d_potential in range(d_orig): # Iterate through earlier days
             for new_t_potential in range(nSlot - dur_p + 1): 
-                # Boundary condition for slots (morning/afternoon)
                 if dur_p > 1 and new_t_potential < (nSlot // 2) and (new_t_potential + dur_p) > (nSlot // 2):
                     continue;
                 
                 for new_o_potential in range(len(or_schedule_copy)):
                     new_blk_potential = compress(new_o_potential, new_d_potential, new_t_potential, nSlot, nDays);
                     
-                    # AOR check for all blocks of the duration
                     can_move_flag = True;
                     for b_loop in range(dur_p):
                         # Assuming is_feasible_block checks AOR[p][new_o_potential][new_d_potential % 5][new_t_potential + b_loop]
@@ -248,7 +244,8 @@ cpdef object AdelantarDia(object solucion, object surgeon, object second, object
                         continue;
                     
                     feasible_moves.append((p, o_orig, new_o_potential, t_orig, new_t_potential, d_orig, new_d_potential));
-    
+
+    if not feasible_moves:
         return solucion
 
     p_sel, o_old_sel, o_new_sel, t_old_sel, t_new_sel, d_old_sel, d_new_sel = random.choice(feasible_moves);
