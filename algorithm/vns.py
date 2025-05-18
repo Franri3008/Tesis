@@ -29,9 +29,9 @@ from _localsearches import (
     CambiarPaciente4,CambiarPaciente5
 )
 
-import initial_solutions
-importlib.reload(initial_solutions)
-from initial_solutions import normal,GRASP
+import algorithm._initial_solutions as _initial_solutions
+importlib.reload(_initial_solutions)
+from algorithm._initial_solutions import normal,GRASP
 
 class CSVCheckpoint:
     def __init__(self,secs,csv_path,instance,aggregator=None):
@@ -56,7 +56,6 @@ class CSVCheckpoint:
             self.best_gap = gap
             self.iter_best_global = iteration
 
-        # wait for the next scheduled checkpoint time
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
 

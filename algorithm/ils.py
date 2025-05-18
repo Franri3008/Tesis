@@ -112,9 +112,9 @@ from _localsearches import (
     CambiarPaciente4,CambiarPaciente5
 )
 
-import initial_solutions
-importlib.reload(initial_solutions)
-from initial_solutions import normal,GRASP
+import algorithm._initial_solutions as _initial_solutions
+importlib.reload(_initial_solutions)
+from algorithm._initial_solutions import normal,GRASP
 
 testing=False; 
 parametroFichas=0.11; 

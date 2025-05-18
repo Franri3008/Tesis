@@ -128,9 +128,11 @@ from perturbations import (
     AniquilarAfinidad
 )
 
-import _localsearches
-importlib.reload(_localsearches)
-from _localsearches import (
+from evaluation import EvalAllORs
+
+import localsearches
+importlib.reload(localsearches)
+from localsearches import (
     MejorarAfinidad_primario,
     MejorarAfinidad_secundario,
     AdelantarDia,
@@ -147,7 +149,8 @@ import initial_solutions
 importlib.reload(initial_solutions)
 from initial_solutions import (
     normal,
-    GRASP
+    GRASP,
+    complete_random
 )
 
 testing = False
@@ -160,7 +163,7 @@ warnings.filterwarnings("ignore")
 # FUNCTIONS
 # ------------------------------------------------------------------------------------
 
-def EvalAllORs(sol, VERSION="C"):
+def EvalAllORs_old(sol, VERSION="C"):
     fichas = [[nFichas * (d+1) for d in range(len(day))] for s in surgeon]
     pacientes, primarios, secundarios = sol
 
@@ -570,17 +573,18 @@ def destruir_OR(solution, OT, dictCosts, nSlot, nDays, room, day):
         pacientes[p] = -1
     return ((pacientes, primarios, secundarios), surgeon_schedule, or_schedule, fichas)
 
-def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
-                  prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
-                  prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
-                  prob_DestruirAfinidad_Todos=2, prob_DestruirAfinidad_Uno=2, prob_PeorOR=2, prob_AniquilarAfinidad=5,
-                  prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29,
-                  prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
-                  prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
-                  prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
-                  prob_Pert=1, prob_Busq=1, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
-                  prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
-                  acceptance_criterion="SA"):  
+def metaheuristic(
+        inicial, report_secs=[30], listener=None, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
+        prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
+        prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
+        prob_DestruirAfinidad_Todos=2, prob_DestruirAfinidad_Uno=2, prob_PeorOR=2, prob_AniquilarAfinidad=5,
+        prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29,
+        prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
+        prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
+        prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
+        prob_Pert=1, prob_Busq=1, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
+        prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
+        acceptance_criterion="SA", tabu=False, tabulen=10, ini_random=0.05):
     random.seed(semilla);
     initial_time = time.time();
     report_secs_sorted = sorted(report_secs);
@@ -640,7 +644,20 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
     mejores_sols = [((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy())];
     best_solution = ((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     best_sol = (best_solution[0][0].copy(), best_solution[0][1].copy(), best_solution[0][2].copy());
-    best_cost = EvalAllORs(best_sol, VERSION="C");
+    best_cost = EvalAllORs(best_sol, VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
     if listener:
         listener.update_best(0, 1 - (-best_cost)/bks);
     elite_pool = [(best_cost, copy.deepcopy(best_solution))];
@@ -660,6 +677,7 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
     i = 0
     while True:
         i += 1
+        new_sol, last_p = Perturbar(current_sol);
         if BusqTemp == 0:
             if random.uniform(0, 1) < prob_Busq:
                 new_sol, last_s = BusquedaLocal(new_sol);
@@ -671,7 +689,20 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
                 new_sol, last_s = BusquedaLocal(new_sol);
             else:
                 new_sol, last_s = copy.deepcopy(current_sol), "NoOp";
-        new_cost = EvalAllORs(new_sol[0], VERSION="C");
+        new_cost = EvalAllORs(new_sol[0], VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
         cur_gap = 1 - (-current_cost) / bks;
         sum_gap += cur_gap;
         count_iter += 1;
@@ -742,21 +773,89 @@ def metaheuristic(inicial, report_secs=[30], listener=None, destruct_type=1, des
         T *= alpha;
         if d_ >= destruct and destruct_type != 0: 
             mejores_sols.append(copy.deepcopy(current_sol));
-            probab = random.choices([1, 2, 3, 4], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal])[0];
+            probab = random.choices([1, 2, 3, 4, 5], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal, ini_random])[0];
             if probab == 1:
                 current_sol = destruir_OR(current_sol, OT, dictCosts, nSlot, nDays, room, day);
-                current_cost = EvalAllORs(current_sol[0], VERSION="C");
+                current_cost = EvalAllORs(current_sol[0], VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
             elif probab == 2:
                 _, chosen_elite_sol = random.choice(elite_pool);
                 current_sol = copy.deepcopy(chosen_elite_sol);
-                current_cost = EvalAllORs(current_sol[0], VERSION=version);
+                current_cost = EvalAllORs(current_sol[0], VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
             elif probab == 3:
                 pick = random.choices([1, 2, 3], weights=[prob_GRASP1, prob_GRASP2, prob_GRASP3])[0];
                 current_sol = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, modo=pick, VERSION="C", hablar=False);
-                current_cost = EvalAllORs(current_sol[0], VERSION=version);
-            else: 
+                current_cost = EvalAllORs(current_sol[0], VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
+            elif probab == 4: 
                 current_sol = normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, VERSION="C", hablar=False);
-                current_cost = EvalAllORs(current_sol[0], VERSION=version);
+                current_cost = EvalAllORs(current_sol[0], VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
+            else:
+                current_sol = complete_random(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, VERSION="C", hablar=False);
+                current_cost = EvalAllORs(current_sol[0], VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
             T = temp_inicial;
             d_ = 0;
         current_time = time.time();
@@ -818,13 +917,16 @@ def main():
     parser.add_argument("--prob_GRASP", type=float, default=0.3)
     parser.add_argument("--prob_normal", type=float, default=0.2)
     parser.add_argument("--prob_Busq", type=float, default=1.0)
-    parser.add_argument("--BusqTemp", type=str, default="yes")
+    parser.add_argument("--BusqTemp", type=str, default="no")
     parser.add_argument("--GRASP_alpha", type=float, default=0.1)
     parser.add_argument("--elite_size", type=int, default=5)
     parser.add_argument("--prob_GRASP1", type=float, default=0.3)
     parser.add_argument("--prob_GRASP2", type=float, default=0.3)
     parser.add_argument("--prob_GRASP3", type=float, default=0.4)
     parser.add_argument("--acceptance_criterion", type=str, default="SA")
+    parser.add_argument("--tabu", type=int, default=0)
+    parser.add_argument("--tabulen", type=int, default=10)
+    parser.add_argument("--ini_random", type=float, default=0.05)
     parser.add_argument("--report_minutes", type=str, default="")
 
     args = parser.parse_args()
@@ -910,11 +1012,27 @@ def main():
                 prob_GRASP1=args.prob_GRASP1,
                 prob_GRASP2=args.prob_GRASP2,
                 prob_GRASP3=args.prob_GRASP3,
-                acceptance_criterion=args.acceptance_criterion
+                acceptance_criterion=args.acceptance_criterion,
+                tabu=args.tabu,
+                tabulen=args.tabulen,
+                ini_random=args.ini_random
             )
 
             _,_,_,_, avg_iter, best_iter, num_sched = stats
-            solutions.append(EvalAllORs(best_solution[0], VERSION="C"))
+            solutions.append(EvalAllORs(best_solution[0], VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                ));
             all_iters.append(avg_iter)
             all_best_iters.append(best_iter)
             all_num_sched.append(num_sched)

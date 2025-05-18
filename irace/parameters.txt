@@ -42,7 +42,10 @@ prob_GRASP1 "--prob_GRASP1 " r (0.01, 1.00) | destruct_type == 1
 prob_GRASP2 "--prob_GRASP2 " r (0.01, 1.00) | destruct_type == 1
 prob_GRASP3 "--prob_GRASP3 " r (0.01, 1.00) | destruct_type == 1
 
-acceptance_criterion "--acceptance_criterion " c ("No", "SA", "ILS")
+acceptance_criterion "--acceptance_criterion " c ("SA", "ILS")
+tabu "--tabu " c (0, 1)
+tabulen "--tabulen " i (1, 10000) | tabu == 1
+ini_random "--ini_random " i (0.00, 1.00)
 
 [global]
 digits = 4

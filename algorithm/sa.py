@@ -10,27 +10,19 @@ class CSVCheckpoint:
         self.first = not self.targetfile.exists()
         self.targetfile.parent.mkdir(parents=True, exist_ok=True)
         self.gaps = []
-        # self.best_iteration = 0  # Removed
-        # self.current_iteration = 0  # Removed
-        # self.max_iteration = 0  # No longer needed for CSV output
+
         self.best_solution = None
         self.best_gap = float('inf')
         self.no_improvement_count = 0
         self.max_no_improvement = 1000
         self.total_iterations = 0        # never resets
-        self.iter_best_global = 0        # absolute iteration of best_gap
+        self.iter_best_global = 0 
         self.aggregator = aggregator
 
     def notify(self, elapsed, gap):
-        """
-        Write one checkpoint row in the same format used by ILS:
-        instance,time,best_gap,avg_gap,iterations,iter_best
-        """
-        # track history
         self.gaps.append(gap)
         self.total_iterations += 1
 
-        # update best gap and the iteration where it happened
         if gap < self.best_gap:
             self.best_gap = gap
             self.iter_best_global = self.total_iterations
@@ -38,7 +30,6 @@ class CSVCheckpoint:
         else:
             self.no_improvement_count += 1
 
-        # wait until the next scheduled time
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
 
@@ -140,9 +131,9 @@ from _localsearches import (
     CambiarPaciente4, CambiarPaciente5
 )
 
-import initial_solutions
-importlib.reload(initial_solutions)
-from initial_solutions import normal, GRASP
+import algorithm._initial_solutions as _initial_solutions
+importlib.reload(_initial_solutions)
+from algorithm._initial_solutions import normal, GRASP
 
 testing=False; parametroFichas=0.11; entrada="etapa1"; version="C"; solucion_inicial=True
 

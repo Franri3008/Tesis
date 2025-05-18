@@ -16,6 +16,9 @@ import math
 import importlib
 import argparse
 
+import collections
+
+from evaluation import EvalAllORs
 
 import perturbations
 importlib.reload(perturbations)
@@ -34,9 +37,9 @@ from perturbations import (
     AniquilarAfinidad
 )
 
-import algorithm._localsearches as _localsearches
-importlib.reload(_localsearches)
-from algorithm._localsearches import (
+import localsearches as localsearches
+importlib.reload(localsearches)
+from localsearches import (
     MejorarAfinidad_primario,
     MejorarAfinidad_secundario,
     AdelantarDia,
@@ -49,11 +52,12 @@ from algorithm._localsearches import (
     CambiarPaciente5
 )
 
-import initial_solutions
+import initial_solutions as initial_solutions
 importlib.reload(initial_solutions)
 from initial_solutions import (
     normal,
-    GRASP
+    GRASP,
+    complete_random
 )
 
 testing = False
@@ -67,7 +71,7 @@ warnings.filterwarnings("ignore")
 # FUNCTIONS
 # ------------------------------------------------------------------------------------
 
-def EvalAllORs(sol, VERSION="C"):
+def EvalAllORs_old(sol, VERSION="C"):
     fichas = [[nFichas * (d+1) for d in range(len(day))] for s in surgeon]
     pacientes, primarios, secundarios = sol
 
@@ -477,17 +481,18 @@ def destruir_OR(solution, OT, dictCosts, nSlot, nDays, room, day):
         pacientes[p] = -1
     return ((pacientes, primarios, secundarios), surgeon_schedule, or_schedule, fichas)
 
-def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
-                  prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
-                  prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
-                  prob_DestruirAfinidad_Todos=2, prob_DestruirAfinidad_Uno=2, prob_PeorOR=2, prob_AniquilarAfinidad=5,
-                  prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29,
-                  prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
-                  prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
-                  prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
-                  prob_Pert=1, prob_Busq=1, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
-                  prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
-                  acceptance_criterion="SA"):  
+def metaheuristic(
+    inicial, max_iter=50, destruct_type=1, destruct=200, temp_inicial=500.0, alpha=0.99,
+    prob_CambiarPrimarios=15, prob_CambiarSecundarios=15, prob_MoverPaciente_bloque=20, prob_MoverPaciente_dia=10,
+    prob_EliminarPaciente=20, prob_AgregarPaciente_1=19, prob_AgregarPaciente_2=19, prob_DestruirAgregar10=2,
+    prob_DestruirAfinidad_Todos=2, prob_DestruirAfinidad_Uno=2, prob_PeorOR=2, prob_AniquilarAfinidad=5,
+    prob_MejorarAfinidad_primario=20, prob_MejorarAfinidad_secundario=20, prob_AdelantarDia=29,
+    prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
+    prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
+    prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
+    prob_Pert=1, prob_Busq=1, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
+    prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
+    acceptance_criterion="SA", tabu=False, tabulen=10, ini_random=0.05):
     random.seed(semilla);
     initial_time = time.time();
 
@@ -544,13 +549,29 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
     mejores_sols = [((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy())];
     best_solution = ((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     best_sol = (best_solution[0][0].copy(), best_solution[0][1].copy(), best_solution[0][2].copy());
-    best_cost = EvalAllORs(best_sol, VERSION="C");
+    best_cost = EvalAllORs(
+        best_sol,
+        VERSION=version,
+        hablar=False,
+        nFichas_val=nFichas,
+        day_py=day,
+        surgeon_py=surgeon,
+        room_py=room,
+        OT_obj=OT,
+        I_obj=I,
+        dictCosts_obj=dictCosts,
+        nDays_val=nDays,
+        nSlot_val=nSlot,
+        SP_obj=SP,
+        bks=bks
+    );
     elite_pool = [(best_cost, copy.deepcopy(best_solution))];
     current_sol = ((best_sol[0].copy(), best_sol[1].copy(), best_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     current_cost = best_cost;
     T = temp_inicial;
     r = 0;
     d_ = 0;
+    tabulist = collections.deque(maxlen=tabulen) if tabu else None
 
     if BusqTemp == "yes":
         BusqTemp = 1;
@@ -567,15 +588,42 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                 new_sol, last_s = BusquedaLocal(new_sol);
             else:
                 new_sol, last_s = copy.deepcopy(current_sol), "NoOp";
-        
         else:
             if random.uniform(0, 1) < prob_Busq * (1 - T/temp_inicial):
                 new_sol, last_s = BusquedaLocal(new_sol);
             else:
                 new_sol, last_s = copy.deepcopy(current_sol), "NoOp";
 
-        new_cost = EvalAllORs(new_sol[0], VERSION="C");
+        new_cost = EvalAllORs(
+            new_sol[0],
+            VERSION=version,
+            hablar=False,
+            nFichas_val=nFichas,
+            day_py=day,
+            surgeon_py=surgeon,
+            room_py=room,
+            OT_obj=OT,
+            I_obj=I,
+            dictCosts_obj=dictCosts,
+            nDays_val=nDays,
+            nSlot_val=nSlot,
+            SP_obj=SP,
+            bks=bks
+        );
         delta = current_cost - new_cost;
+
+        istabu_reject = False
+        sig = None
+        if tabu and tabulist is not None:
+            pac_assign = new_sol[0][0]
+            sig = tuple(pac_assign) if isinstance(pac_assign, list) else pac_assign
+            # Reject if solution is tabu and not improving the best cost
+            if sig in tabulist and new_cost >= best_cost:
+                istabu_reject = True
+        if istabu_reject:
+            d_ += 1
+            T *= alpha
+            continue
 
         ac = acceptance_criterion.lower();
         if ac == "no":
@@ -583,6 +631,8 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
+                if tabu and sig is not None and tabulist is not None:
+                    tabulist.append(sig)
                 current_cost = new_cost;
                 if new_cost < best_cost:
                     best_solution = copy.deepcopy(current_sol);
@@ -590,7 +640,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                     elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                     elite_pool.sort(key=lambda x: x[0], reverse=False);
                     elite_pool = elite_pool[:elite_size];
-                d_ = 0;
+                    d_ = 0;
             else:
                 d_ += 1;
         elif ac == "sa":
@@ -598,6 +648,8 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
+                if tabu and sig is not None and tabulist is not None:
+                    tabulist.append(sig)
                 current_cost = new_cost;
                 if new_cost < best_cost:
                     best_solution = copy.deepcopy(current_sol);
@@ -605,7 +657,7 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                     elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                     elite_pool.sort(key=lambda x: x[0], reverse=False);
                     elite_pool = elite_pool[:elite_size];
-                d_ = 0;
+                    d_ = 0;
             else:
                 d_ += 1;
         elif ac == "ils":
@@ -613,6 +665,8 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
+                if tabu and sig is not None and tabulist is not None:
+                    tabulist.append(sig)
                 current_cost = new_cost;
                 best_solution = copy.deepcopy(current_sol);
                 best_cost = current_cost;
@@ -623,32 +677,95 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
             else:
                 current_sol = copy.deepcopy(best_solution);
                 current_cost = best_cost;
-                d_ = 0;
+                d_ += 1;
         else:
             raise ValueError(f"criterio equivocado: {acceptance_criterion}");
 
         T *= alpha;
         if d_ >= destruct and destruct_type != 0:
             mejores_sols.append(copy.deepcopy(current_sol));
-            probab = random.choices([1, 2, 3, 4], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal])[0];
+            probab = random.choices([1, 2, 3, 4, 5], weights=[prob_DestruirOR, prob_elite, prob_GRASP, prob_normal, ini_random])[0];
             if probab == 1:
                 current_sol = destruir_OR(current_sol, OT, dictCosts, nSlot, nDays, room, day);
-                current_cost = EvalAllORs(current_sol[0], VERSION="C");
+                current_cost = EvalAllORs(current_sol[0],VERSION=version,nFichas_val=nFichas,day_py=day,surgeon_py=surgeon,room_py=room,OT_obj=OT,I_obj=I,dictCosts_obj=dictCosts,nDays_val=nDays,nSlot_val=nSlot,SP_obj=SP,bks=bks);
             elif probab == 2:
                 _, chosen_elite_sol = random.choice(elite_pool);
                 current_sol = copy.deepcopy(chosen_elite_sol);
-                current_cost = EvalAllORs(current_sol[0], VERSION=version);
+                current_cost = EvalAllORs(
+                    current_sol[0],
+                    VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
             elif probab == 3:
                 pick = random.choices([1, 2, 3], weights=[prob_GRASP1, prob_GRASP2, prob_GRASP3])[0];
                 current_sol = GRASP(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, alpha=GRASP_alpha, modo=pick, VERSION="C", hablar=False);
-                current_cost = EvalAllORs(current_sol[0], VERSION=version);
-            else: 
+                current_cost = EvalAllORs(
+                    current_sol[0],
+                    VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
+            elif probab == 4: 
                 current_sol = normal(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, VERSION="C", hablar=False);
-                current_cost = EvalAllORs(current_sol[0], VERSION=version);
+                current_cost = EvalAllORs(
+                    current_sol[0],
+                    VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
+            else:
+                current_sol = complete_random(surgeon, second, patient, room, day, slot, AOR, I, dictCosts, nFichas, nSlot, SP, COIN, OT, VERSION="C", hablar=False);
+                current_cost = EvalAllORs(
+                    current_sol[0],
+                    VERSION=version,
+                    hablar=False,
+                    nFichas_val=nFichas,
+                    day_py=day,
+                    surgeon_py=surgeon,
+                    room_py=room,
+                    OT_obj=OT,
+                    I_obj=I,
+                    dictCosts_obj=dictCosts,
+                    nDays_val=nDays,
+                    nSlot_val=nSlot,
+                    SP_obj=SP,
+                    bks=bks
+                );
             T = temp_inicial;
             d_ = 0;
         current_time = time.time();
-        if current_time - initial_time >= 80:
+        if current_time - initial_time >= 20:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
 
@@ -656,12 +773,13 @@ def metaheuristic(inicial, max_iter=50, destruct_type=1, destruct=200, temp_inic
 
     mejor_costo, mejor = elite_pool[0];
     return mejor, (lista_evaluacion, lista_iteracion, metadata_pert, metadata_search);
-
+    #/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 metaheuristic.py demo 0 0 ./irace/instances/instance1.json --destruct 500 --temp_inicial 800 --alpha 0.99 --acceptance_criterion SA --tabu 1 --tabulen 15
 # ------------------------------------------------------------------------------------
 # 3. MAIN
 # ------------------------------------------------------------------------------------
 def main():
-    global typePatients, nPatients, nSurgeons, nDays, min_affinity, time_limit, bks
+    global typePatients, nPatients, nSurgeons, nDays, min_affinity, time_limit, bks, version
+    version = "C";
     parser = argparse.ArgumentParser()
     parser.add_argument("instance_id")
     parser.add_argument("seed")
@@ -670,28 +788,28 @@ def main():
     parser.add_argument("--destruct", type=int, default=9999)
     parser.add_argument("--temp_inicial", type=float, default=800.0)
     parser.add_argument("--alpha", type=float, default=1.00)
-    parser.add_argument("--prob_CambiarPrimarios", type=float, default=0.00)
-    parser.add_argument("--prob_CambiarSecundarios", type=float, default=0.00)
-    parser.add_argument("--prob_MoverPaciente_bloque", type=float, default=0.00)
-    parser.add_argument("--prob_MoverPaciente_dia", type=float, default=0.00)
-    parser.add_argument("--prob_EliminarPaciente", type=float, default=0.00)
-    parser.add_argument("--prob_AgregarPaciente_1", type=float, default=0.00)
-    parser.add_argument("--prob_AgregarPaciente_2", type=float, default=0.00)
-    parser.add_argument("--prob_DestruirAgregar10", type=float, default=0.00)
-    parser.add_argument("--prob_DestruirAfinidad_Todos", type=float, default=0.00)
-    parser.add_argument("--prob_DestruirAfinidad_Uno", type=float, default=0.00)
-    parser.add_argument("--prob_PeorOR", type=float, default=0.00)
-    parser.add_argument("--prob_AniquilarAfinidad", type=float, default=0.00)
-    parser.add_argument("--prob_MejorarAfinidad_primario", type=float, default=0.00)
-    parser.add_argument("--prob_MejorarAfinidad_secundario", type=float, default=0.00)
-    parser.add_argument("--prob_AdelantarDia", type=float, default=0.00)
-    parser.add_argument("--prob_MejorOR", type=float, default=0.00)
-    parser.add_argument("--prob_AdelantarTodos", type=float, default=0.00)
-    parser.add_argument("--prob_CambiarPaciente1", type=float, default=0.00)
-    parser.add_argument("--prob_CambiarPaciente2", type=float, default=0.00)
-    parser.add_argument("--prob_CambiarPaciente3", type=float, default=0.00)
-    parser.add_argument("--prob_CambiarPaciente4", type=float, default=0.00)
-    parser.add_argument("--prob_CambiarPaciente5", type=float, default=0.00)
+    parser.add_argument("--prob_CambiarPrimarios", type=float, default=0.20)
+    parser.add_argument("--prob_CambiarSecundarios", type=float, default=0.20)
+    parser.add_argument("--prob_MoverPaciente_bloque", type=float, default=0.20)
+    parser.add_argument("--prob_MoverPaciente_dia", type=float, default=0.20)
+    parser.add_argument("--prob_EliminarPaciente", type=float, default=0.05)
+    parser.add_argument("--prob_AgregarPaciente_1", type=float, default=0.20)
+    parser.add_argument("--prob_AgregarPaciente_2", type=float, default=0.20)
+    parser.add_argument("--prob_DestruirAgregar10", type=float, default=0.01)
+    parser.add_argument("--prob_DestruirAfinidad_Todos", type=float, default=0.02)
+    parser.add_argument("--prob_DestruirAfinidad_Uno", type=float, default=0.10)
+    parser.add_argument("--prob_PeorOR", type=float, default=0.10)
+    parser.add_argument("--prob_AniquilarAfinidad", type=float, default=0.05)
+    parser.add_argument("--prob_MejorarAfinidad_primario", type=float, default=0.20)
+    parser.add_argument("--prob_MejorarAfinidad_secundario", type=float, default=0.20)
+    parser.add_argument("--prob_AdelantarDia", type=float, default=0.20)
+    parser.add_argument("--prob_MejorOR", type=float, default=0.20)
+    parser.add_argument("--prob_AdelantarTodos", type=float, default=0.02)
+    parser.add_argument("--prob_CambiarPaciente1", type=float, default=0.20)
+    parser.add_argument("--prob_CambiarPaciente2", type=float, default=0.20)
+    parser.add_argument("--prob_CambiarPaciente3", type=float, default=0.30)
+    parser.add_argument("--prob_CambiarPaciente4", type=float, default=0.20)
+    parser.add_argument("--prob_CambiarPaciente5", type=float, default=0.20)
     parser.add_argument("--destruct_type", type=int, default=1)
     parser.add_argument("--prob_DestruirOR", type=float, default=0.2)
     parser.add_argument("--prob_elite", type=float, default=0.3)
@@ -705,7 +823,9 @@ def main():
     parser.add_argument("--prob_GRASP2", type=float, default=0.3)
     parser.add_argument("--prob_GRASP3", type=float, default=0.4)
     parser.add_argument("--acceptance_criterion", type=str, default="SA")
-
+    parser.add_argument("--tabu", type=int, default=0)
+    parser.add_argument("--tabulen", type=int, default=10)
+    parser.add_argument("--ini_random", type=float, default=0.05)
     args = parser.parse_args()
 
     instance_id                  = args.instance_id;
@@ -729,28 +849,31 @@ def main():
     prob_AniquilarAfinidad       = args.prob_AniquilarAfinidad;
     prob_MejorarAfinidad_primario= args.prob_MejorarAfinidad_primario;
     prob_MejorarAfinidad_secundario= args.prob_MejorarAfinidad_secundario;
-    prob_AdelantarDia            = args.prob_AdelantarDia;
-    prob_MejorOR                 = args.prob_MejorOR;
-    prob_AdelantarTodos          = args.prob_AdelantarTodos;
-    prob_CambiarPaciente1        = args.prob_CambiarPaciente1;
-    prob_CambiarPaciente2        = args.prob_CambiarPaciente2;
-    prob_CambiarPaciente3        = args.prob_CambiarPaciente3;
-    prob_CambiarPaciente4        = args.prob_CambiarPaciente4;
-    prob_CambiarPaciente5        = args.prob_CambiarPaciente5;
-    destruct_type                = args.destruct_type;
-    prob_DestruirOR              = args.prob_DestruirOR;
-    prob_elite                   = args.prob_elite;
-    prob_GRASP                   = args.prob_GRASP;
-    prob_normal                  = args.prob_normal;
-    prob_Pert                    = 1;
-    prob_Busq                    = args.prob_Busq;
-    BusqTemp                     = args.BusqTemp;
-    GRASP_alpha                  = args.GRASP_alpha;
-    elite_size                   = args.elite_size;
-    prob_GRASP1                  = args.prob_GRASP1;
-    prob_GRASP2                  = args.prob_GRASP2;
-    prob_GRASP3                  = args.prob_GRASP3;
-    acceptance_criterion         = args.acceptance_criterion;
+    prob_AdelantarDia = args.prob_AdelantarDia;
+    prob_MejorOR = args.prob_MejorOR;
+    prob_AdelantarTodos = args.prob_AdelantarTodos;
+    prob_CambiarPaciente1 = args.prob_CambiarPaciente1;
+    prob_CambiarPaciente2 = args.prob_CambiarPaciente2;
+    prob_CambiarPaciente3 = args.prob_CambiarPaciente3;
+    prob_CambiarPaciente4 = args.prob_CambiarPaciente4;
+    prob_CambiarPaciente5 = args.prob_CambiarPaciente5;
+    destruct_type = args.destruct_type;
+    prob_DestruirOR = args.prob_DestruirOR;
+    prob_elite  = args.prob_elite;
+    prob_GRASP = args.prob_GRASP;
+    prob_normal = args.prob_normal;
+    prob_Pert = 1;
+    prob_Busq = args.prob_Busq;
+    BusqTemp = args.BusqTemp;
+    GRASP_alpha = args.GRASP_alpha;
+    elite_size = args.elite_size;
+    prob_GRASP1 = args.prob_GRASP1;
+    prob_GRASP2 = args.prob_GRASP2;
+    prob_GRASP3 = args.prob_GRASP3;
+    acceptance_criterion = args.acceptance_criterion;
+    tabu = bool(args.tabu)
+    tabulen = args.tabulen
+    ini_random = args.ini_random;
 
     random.seed(seed);
     max_iter = 125000;
@@ -773,23 +896,26 @@ def main():
 
     start_time = time.time()
     solutions = [];
-    for ejec in range(8):
-        best_solution, stats = metaheuristic(inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
-                                            prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
-                                            prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
-                                            prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
-                                            prob_DestruirAgregar10=prob_DestruirAgregar10, prob_DestruirAfinidad_Todos=prob_DestruirAfinidad_Todos,
-                                            prob_DestruirAfinidad_Uno=prob_DestruirAfinidad_Uno, prob_PeorOR=prob_PeorOR, prob_AniquilarAfinidad=prob_AniquilarAfinidad,
-                                            prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
-                                            prob_AdelantarDia=prob_AdelantarDia, prob_MejorOR=prob_MejorOR,
-                                            prob_AdelantarTodos=prob_AdelantarTodos,
-                                            prob_CambiarPaciente1=prob_CambiarPaciente1, prob_CambiarPaciente2=prob_CambiarPaciente2, 
-                                            prob_CambiarPaciente3=prob_CambiarPaciente3, prob_CambiarPaciente4=prob_CambiarPaciente4, prob_CambiarPaciente5=prob_CambiarPaciente5,
-                                            prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, prob_normal=prob_normal,
-                                            prob_Pert=prob_Pert, prob_Busq=prob_Busq, BusqTemp=BusqTemp, semilla=ejec, GRASP_alpha=GRASP_alpha, 
-                                            elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3,
-                                            acceptance_criterion=acceptance_criterion);
-        solutions.append(EvalAllORs(best_solution[0], VERSION="C"));
+    for ejec in range(2):
+        best_solution, stats = metaheuristic(
+            inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
+            prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
+            prob_MoverPaciente_bloque=prob_MoverPaciente_bloque, prob_MoverPaciente_dia=prob_MoverPaciente_dia,
+            prob_EliminarPaciente=prob_EliminarPaciente, prob_AgregarPaciente_1=prob_AgregarPaciente_1, prob_AgregarPaciente_2=prob_AgregarPaciente_2,
+            prob_DestruirAgregar10=prob_DestruirAgregar10, prob_DestruirAfinidad_Todos=prob_DestruirAfinidad_Todos,
+            prob_DestruirAfinidad_Uno=prob_DestruirAfinidad_Uno, prob_PeorOR=prob_PeorOR, prob_AniquilarAfinidad=prob_AniquilarAfinidad,
+            prob_MejorarAfinidad_primario=prob_MejorarAfinidad_primario, prob_MejorarAfinidad_secundario=prob_MejorarAfinidad_secundario,
+            prob_AdelantarDia=prob_AdelantarDia, prob_MejorOR=prob_MejorOR,
+            prob_AdelantarTodos=prob_AdelantarTodos,
+            prob_CambiarPaciente1=prob_CambiarPaciente1, prob_CambiarPaciente2=prob_CambiarPaciente2, 
+            prob_CambiarPaciente3=prob_CambiarPaciente3, prob_CambiarPaciente4=prob_CambiarPaciente4, prob_CambiarPaciente5=prob_CambiarPaciente5,
+            prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, prob_normal=prob_normal,
+            prob_Pert=prob_Pert, prob_Busq=prob_Busq, BusqTemp=BusqTemp, semilla=ejec, GRASP_alpha=GRASP_alpha, 
+            elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3,
+            tabu=tabu, tabulen=tabulen,
+            acceptance_criterion=acceptance_criterion, ini_random=ini_random
+        );
+        solutions.append(EvalAllORs(best_solution[0], VERSION=version, hablar=False,nFichas_val=nFichas, day_py=day, surgeon_py=surgeon, room_py=room,OT_obj=OT, I_obj=I, dictCosts_obj=dictCosts,nDays_val=nDays, nSlot_val=nSlot, SP_obj=SP));
     elapsed = time.time() - start_time
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
     #print(final_cost)
@@ -797,6 +923,7 @@ def main():
 
     #Para comprobador.py
     #return np.round(np.mean(solutions), 3), elapsed, min(solutions)
+    #/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 metaheuristic.py demo 0 0 ../irace/instances/instance1.json --destruct 500 --temp_inicial 800 --alpha 0.99 --acceptance_criterion SA --tabu 1 --tabulen 15
 
 if __name__ == "__main__":
     main()

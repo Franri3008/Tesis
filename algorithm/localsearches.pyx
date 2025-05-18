@@ -3,6 +3,9 @@ import random
 import copy
 import math
 
+cdef _get_sort_key_last_element(tuple item):
+    return item[-1];
+
 cdef inline int compress(int o, int d, int t, int nSlot, int nDays):
     return o * nSlot * nDays + d * nSlot + t
 
@@ -61,7 +64,8 @@ cpdef object MejorarAfinidad_primario(object solucion, object surgeon, object se
         #print("[MejorarAfinidad_primario] No hay cambios realizables.") if hablar else None;
         return solucion
 
-    feasible_changes.sort(key=lambda x: x[-1], reverse=True);
+    #feasible_changes.sort(key=lambda x: x[-1], reverse=True);
+    feasible_changes.sort(key=_get_sort_key_last_element, reverse=True);
     p_sel, s_sel, s_old, mejora = feasible_changes[0];
     start_blk = pacientes_copy[p_sel]
     dur = OT[p_sel]
@@ -113,7 +117,7 @@ cpdef object MejorarAfinidad_secundario(object solucion, object surgeon, object 
             if not available:
                 continue
             # Si no tiene fichas suficientes, no se considera
-f           ichas_ok = True
+            fichas_ok = True
             for d_aux in range(d, nDays):
                 if fichas_copy[(s_sel, d_aux)] - dictCosts[(s_sel, a, pacientes_copy[p_sel])] < 0:
                     fichas_ok = False
@@ -129,7 +133,8 @@ f           ichas_ok = True
         #print("[MejorarAfinidad_secundario] No hay cambios realizables.") if hablar else None;
         return solucion
 
-    feasible_changes.sort(key=lambda x: x[-1], reverse=True);
+    #feasible_changes.sort(key=lambda x: x[-1], reverse=True);
+    feasible_changes.sort(key=_get_sort_key_last_element, reverse=True);
     p_sel, a_sel, a_old, mejora = feasible_changes[0];
     start_blk = pacientes_copy[p_sel];
     dur = OT[p_sel];
@@ -157,90 +162,140 @@ cpdef object AdelantarDia(object solucion, object surgeon, object second, object
     or_schedule_copy = copy.deepcopy(solucion[2]);
     fichas_copy = copy.deepcopy(solucion[3]);
     pacientes_copy, primarios_copy, secundarios_copy = copy.deepcopy(solucion[0][0]), copy.deepcopy(solucion[0][1]), copy.deepcopy(solucion[0][2]);
+    
     scheduled = [p for p in range(len(pacientes_copy)) if pacientes_copy[p] != -1];
     if not scheduled:
-        print("[AdelantarDia] No hay pacientes programados.") if hablar else None;
+        # print("[AdelantarDia] No hay pacientes programados.") if hablar else None;
         return solucion
 
     feasible_moves = [];
+    cdef int p, s_orig, a_orig, o_orig, d_orig, t_orig, dur_p;
+    cdef int new_d_potential, new_t_potential, new_o_potential;
+    cdef int b_loop, d_check_loop;
+    cdef bint can_move_flag, main_free_flag, second_free_flag, fichas_ok_flag;
+    cdef int start_blk_orig, new_blk_potential;
+    cdef double cost_new_potential_op;
+
     for p in scheduled:
-        start_blk = pacientes_copy[p];
-        s = primarios_copy[start_blk];
-        a = secundarios_copy[start_blk];
-        o, d, t = decompress(start_blk, nSlot, nDays);
-        if d == 0:
+        start_blk_orig = pacientes_copy[p];
+        # Ensure start_blk_orig is a valid key before accessing primarios_copy/secundarios_copy
+        if start_blk_orig not in primarios_copy or start_blk_orig not in secundarios_copy:
+            # This case should ideally not happen if the solution is consistent
+            # print(f"[AdelantarDia] Warning: Patient {p} has start_blk {start_blk_orig} not in primarios/secundarios. Skipping.") if hablar else None;
             continue;
-        dur = OT[p];
-        for new_d in range(d):
-            for new_t in range(nSlot):
-                for new_o in range(len(or_schedule_copy)):
-                    new_blk = compress(new_o, new_d, new_t, nSlot, nDays);  
-                    if AOR[p][new_o][new_t][new_d % 5] != 1 or new_t + dur >= nSlot or (new_t < nSlot//2 and new_t + dur >= nSlot//2):
+            
+        s_orig = primarios_copy[start_blk_orig];
+        a_orig = secundarios_copy[start_blk_orig];
+        o_orig, d_orig, t_orig = decompress(start_blk_orig, nSlot, nDays);
+        
+        if d_orig == 0: # Already on the earliest day
+            continue;
+        dur_p = OT[p];
+
+        for new_d_potential in range(d_orig): # Iterate through earlier days
+            for new_t_potential in range(nSlot - dur_p + 1): 
+                # Boundary condition for slots (morning/afternoon)
+                if dur_p > 1 and new_t_potential < (nSlot // 2) and (new_t_potential + dur_p) > (nSlot // 2):
+                    continue;
+                
+                for new_o_potential in range(len(or_schedule_copy)):
+                    new_blk_potential = compress(new_o_potential, new_d_potential, new_t_potential, nSlot, nDays);
+                    
+                    # AOR check for all blocks of the duration
+                    can_move_flag = True;
+                    for b_loop in range(dur_p):
+                        # Assuming is_feasible_block checks AOR[p][new_o_potential][new_d_potential % 5][new_t_potential + b_loop]
+                        # The original Python AOR check was AOR[p][new_o][new_t][new_d % 5] != 1, applied only to the start.
+                        # For consistency with typical AOR, checking all blocks:
+                        if not is_feasible_block(p, new_o_potential, new_d_potential, new_t_potential + b_loop, AOR): # Pass AOR to it
+                            can_move_flag = False;
+                            break;
+                    if not can_move_flag:
                         continue;
-                    can_move = True;
-                    # Solo si cirujanos tienen disponibilidad completa:
-                    main_free = True
-                    for b in range(dur):
-                        if surgeon_schedule_copy[s][new_d][new_t + b] != -1:
-                            main_free = False
-                            break
-                    if not main_free:
-                        continue
-                    second_free = True
-                    for b in range(dur):
-                        if surgeon_schedule_copy[a][new_d][new_t + b] != -1:
-                            second_free = False
-                            break
-                    if not second_free:
-                        continue
-                    # Si no tiene fichas suficientes, no se considera
-                    fichas_ok = True
-                    for d_aux in range(new_d, d):
-                        if fichas_copy[(s, d_aux)] - dictCosts[(s, a, new_blk)] < 0:
-                            fichas_ok = False
-                            break
-                    if not fichas_ok:
-                        continue
-                    for b in range(dur):
-                        new_blk = compress(new_o, new_d, new_t + b, nSlot, nDays);
-                        if new_blk in primarios_copy or new_blk in secundarios_copy:
-                            can_move = False;
-                            break
-                    if can_move:
-                        feasible_moves.append((p, o, new_o, t, new_t, d, new_d));
-    if not feasible_moves:
-        print("[AdelantarDia] No hay cambios realizables.") if hablar else None;
+
+                    # Check surgeon availability (main and assistant)
+                    main_free_flag = True;
+                    for b_loop in range(dur_p):
+                        if surgeon_schedule_copy[s_orig][new_d_potential][new_t_potential + b_loop] != -1:
+                            main_free_flag = False;
+                            break;
+                    if not main_free_flag:
+                        continue;
+                    
+                    second_free_flag = True;
+                    for b_loop in range(dur_p):
+                        if surgeon_schedule_copy[a_orig][new_d_potential][new_t_potential + b_loop] != -1:
+                            second_free_flag = False;
+                            break;
+                    if not second_free_flag:
+                        continue;
+
+                    cost_new_potential_op = dictCosts[(s_orig, a_orig, new_blk_potential)];
+                    fichas_ok_flag = True;
+                    for d_check_loop in range(new_d_potential, nDays):
+                        if fichas_copy[(s_orig, d_check_loop)] - cost_new_potential_op < 0:
+                            fichas_ok_flag = False;
+                            break;
+                    if not fichas_ok_flag:
+                        continue;
+                    
+                    can_move_flag = True; 
+                    for b_loop in range(dur_p):
+                        if or_schedule_copy[new_o_potential][new_d_potential][new_t_potential + b_loop] != -1:
+                            can_move_flag = False;
+                            break;
+                    if not can_move_flag:
+                        continue;
+                    
+                    feasible_moves.append((p, o_orig, new_o_potential, t_orig, new_t_potential, d_orig, new_d_potential));
+    
         return solucion
 
-    p_sel, o_old, o_new, t_old, t_new, d_old, d_new = random.choice(feasible_moves);
-    dur = OT[p_sel];
-    start_blk_old = pacientes_copy[p_sel];
-    s = primarios_copy[start_blk_old];
-    a = secundarios_copy[start_blk_old];
-    for b in range(dur):
-        ob = start_blk_old + b;
-        if ob in primarios_copy:
-            surgeon_schedule_copy[primarios_copy[ob]][d_old][t_old + b] = -1;
-            del primarios_copy[ob];
-        if ob in secundarios_copy:
-            surgeon_schedule_copy[secundarios_copy[ob]][d_old][t_old + b] = -1;
-            del secundarios_copy[ob];
-        or_schedule_copy[o_old][d_old][t_old + b] = -1;
+    p_sel, o_old_sel, o_new_sel, t_old_sel, t_new_sel, d_old_sel, d_new_sel = random.choice(feasible_moves);
+    dur_sel = OT[p_sel];
+    start_blk_old_sel = pacientes_copy[p_sel]; 
+    
+    if start_blk_old_sel not in primarios_copy or start_blk_old_sel not in secundarios_copy:
+        return solucion
 
-    new_start = compress(o_new, d_new, t_new, nSlot, nDays);
-    for d_aux in range(d_new, d_old):
-        fichas_copy[(s, d_aux)] -= dictCosts[(s, a, new_start)];
-    for b in range(dur):
-        primarios_copy[new_start + b] = s;
-        secundarios_copy[new_start + b] = a;
-        surgeon_schedule_copy[s][d_new][t_new + b] = p_sel;
-        surgeon_schedule_copy[a][d_new][t_new + b] = p_sel;
-        or_schedule_copy[o_new][d_new][t_new + b] = p_sel;
-    pacientes_copy[p_sel] = new_start;
+    s_sel = primarios_copy[start_blk_old_sel];
+    a_sel = secundarios_copy[start_blk_old_sel];
 
-    if hablar:
-        print(f"[AdelantarDia] Patient {p_sel} moved from day {d_old} to day {d_new}, from OR {o_old} to OR {o_new}, and from slot {t_old} to slot {t_new}.");
-    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy)
+    cdef int ob_old_loop;
+    for b_loop in range(dur_sel):
+        ob_old_loop = start_blk_old_sel + b_loop; 
+        # Check existence before pop, and ensure correct surgeon for surgeon_schedule
+        if ob_old_loop in primarios_copy and primarios_copy[ob_old_loop] == s_sel:
+             surgeon_schedule_copy[s_sel][d_old_sel][t_old_sel + b_loop] = -1;
+        primarios_copy.pop(ob_old_loop, None); # Remove from map
+
+        if ob_old_loop in secundarios_copy and secundarios_copy[ob_old_loop] == a_sel:
+             surgeon_schedule_copy[a_sel][d_old_sel][t_old_sel + b_loop] = -1;
+        secundarios_copy.pop(ob_old_loop, None); # Remove from map
+        
+        or_schedule_copy[o_old_sel][d_old_sel][t_old_sel + b_loop] = -1;
+
+    new_start_sel = compress(o_new_sel, d_new_sel, t_new_sel, nSlot, nDays);
+    cost_at_old_pos_sel = dictCosts[(s_sel, a_sel, start_blk_old_sel)];
+    cost_at_new_pos_sel = dictCosts[(s_sel, a_sel, new_start_sel)];
+
+    cdef int d_update_idx;
+    for d_update_idx in range(d_old_sel, nDays):
+        fichas_copy[(s_sel, d_update_idx)] += cost_at_old_pos_sel; 
+    for d_update_idx in range(d_new_sel, nDays):
+        fichas_copy[(s_sel, d_update_idx)] -= cost_at_new_pos_sel; 
+            
+    pacientes_copy[p_sel] = new_start_sel;
+    cdef int nb_new_loop;
+    for b_loop in range(dur_sel):
+        nb_new_loop = new_start_sel + b_loop; 
+        primarios_copy[nb_new_loop] = s_sel;
+        secundarios_copy[nb_new_loop] = a_sel;
+        surgeon_schedule_copy[s_sel][d_new_sel][t_new_sel + b_loop] = p_sel;
+        surgeon_schedule_copy[a_sel][d_new_sel][t_new_sel + b_loop] = p_sel;
+        or_schedule_copy[o_new_sel][d_new_sel][t_new_sel + b_loop] = p_sel;
+
+    return ((pacientes_copy, primarios_copy, secundarios_copy), surgeon_schedule_copy, or_schedule_copy, fichas_copy);
 
 cpdef object MejorOR(object solucion, object surgeon, object second, object OT, object I, object SP, object AOR, dict dictCosts, int nSlot, int nDays, bint hablar=False):
     surgeon_schedule_copy = copy.deepcopy(solucion[1])
@@ -865,7 +920,16 @@ cpdef object CambiarPaciente4(object solucion, object surgeon, object second, ob
     if not unscheduled or not scheduled:
         return solucion;
 
-    p_unsched = max(unscheduled, key=lambda p: I[(p,0)]/OT[p]);
+    #p_unsched = max(unscheduled, key=lambda p: I[(p,0)]/OT[p]);
+    p_unsched = unscheduled[0];
+    max_ratio_val = I[(p_unsched, 0)] / OT[p_unsched];
+
+    for p_candidate_idx in range(1, len(unscheduled)): # Start from the second element
+        p_curr = unscheduled[p_candidate_idx];
+        current_ratio_val = I[(p_curr, 0)] / OT[p_curr];
+        if current_ratio_val > max_ratio_val:
+            max_ratio_val = current_ratio_val;
+            p_unsched = p_curr;
     dur_unsched = OT[p_unsched];
     best_target = None;
     min_ratio = math.inf;
