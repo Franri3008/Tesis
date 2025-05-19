@@ -765,7 +765,7 @@ def metaheuristic(
             T = temp_inicial;
             d_ = 0;
         current_time = time.time();
-        if current_time - initial_time >= 20:
+        if current_time - initial_time >= 80:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
 
@@ -896,7 +896,7 @@ def main():
 
     start_time = time.time()
     solutions = [];
-    for ejec in range(2):
+    for ejec in range(9):
         best_solution, stats = metaheuristic(
             inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
