@@ -765,7 +765,7 @@ def metaheuristic(
             T = temp_inicial;
             d_ = 0;
         current_time = time.time();
-        if current_time - initial_time >= 80:
+        if current_time - initial_time >= 60:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
 
@@ -915,7 +915,7 @@ def main():
             tabu=tabu, tabulen=tabulen,
             acceptance_criterion=acceptance_criterion, ini_random=ini_random
         );
-        solutions.append(EvalAllORs(best_solution[0], VERSION=version, hablar=False,nFichas_val=nFichas, day_py=day, surgeon_py=surgeon, room_py=room,OT_obj=OT, I_obj=I, dictCosts_obj=dictCosts,nDays_val=nDays, nSlot_val=nSlot, SP_obj=SP));
+        solutions.append(EvalAllORs(best_solution[0], VERSION=version, hablar=False,nFichas_val=nFichas, day_py=day, surgeon_py=surgeon, room_py=room,OT_obj=OT, I_obj=I, dictCosts_obj=dictCosts,nDays_val=nDays, nSlot_val=nSlot, SP_obj=SP, bks=bks));
     elapsed = time.time() - start_time
     #final_cost = EvalAllORs(best_solution[0], VERSION="C")
     #print(final_cost)
