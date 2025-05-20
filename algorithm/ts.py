@@ -559,14 +559,9 @@ def main():
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]:
         parser.add_argument(f"--prob_{s}", type=float, default=10.0)
-    parser.add_argument("--report_minutes", type=str, default="")
-    args = parser.parse_args()
-
-    # checkpoint times
-    if args.report_minutes.strip():
-        report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
-    else:
-        report_secs = []
+    parser.add_argument("--report_minutes", type=str, default="");
+    args, _ = parser.parse_known_args();
+    report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()] if args.report_minutes.strip() else [];
 
     # probabilities
     pert_probs = [getattr(args, f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque",

@@ -560,7 +560,6 @@ def main():
     parser.add_argument("--temp_inicial",type=float,default=800.0)
     parser.add_argument("--alpha",type=float,default=0.99)
     parser.add_argument("--seed",type=int,default=258)
-    parser.add_argument("--report_minutes",type=str,default="")
     for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
               "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
               "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]:
@@ -569,8 +568,10 @@ def main():
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
               "CambiarPaciente4","CambiarPaciente5"]:
         parser.add_argument(f"--prob_{s}",type=float,default=10.0)
-    args = parser.parse_args()
-    report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()] if args.report_minutes.strip() else []
+    parser.add_argument("--report_minutes", type=str, default="");
+    args, _ = parser.parse_known_args();
+    report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()] if args.report_minutes.strip() else [];
+
     seeds = list(range(10))
     for i in range(1, 16):
         try:

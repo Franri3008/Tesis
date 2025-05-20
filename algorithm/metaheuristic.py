@@ -660,7 +660,7 @@ def metaheuristic(
             else:
                 d_ += 1;
         elif ac == "ils":
-            if new_cost < best_cost:
+            if new_cost < (1 + valor) * best_cost:
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
@@ -674,8 +674,8 @@ def metaheuristic(
                 elite_pool = elite_pool[:elite_size];
                 d_ = 0;
             else:
-                current_sol = copy.deepcopy(best_solution);
-                current_cost = best_cost;
+                #current_sol = copy.deepcopy(best_solution);
+                #current_cost = best_cost;
                 d_ += 1;
         else:
             raise ValueError(f"criterio equivocado: {acceptance_criterion}");
