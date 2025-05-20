@@ -528,6 +528,7 @@ def metaheuristic(
     report_secs_sorted = sorted(report_secs);
     last_report = report_secs_sorted[-1];
     next_report_idx = 0
+    iter_best = 0
 
     initial_sol = inicial[0];
     surgeon_schedule = inicial[1];
@@ -889,8 +890,8 @@ def main():
     parser.add_argument("--report_minutes", type=str, default="")
 
     args = parser.parse_args()
-    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,16)];
-    seeds = list(range(10))
+    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,3)];
+    seeds = list(range(1))
     if args.report_minutes.strip():
         report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
     else:
@@ -1004,4 +1005,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-#/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 200 --temp_inicial 800.0 --alpha 0.99 --prob_CambiarPrimarios 0.15 --prob_CambiarSecundarios 0.15 --prob_MoverPaciente_bloque 0.20 --prob_MoverPaciente_dia 0.10 --prob_EliminarPaciente 0.20 --prob_AgregarPaciente_1 0.19 --prob_AgregarPaciente_2 0.19 --prob_DestruirAgregar10 0.02 --prob_DestruirAfinidad_Todos 0.02 --prob_DestruirAfinidad_Uno 0.02 --prob_PeorOR 0.02 --prob_AniquilarAfinidad 0.05 --prob_MejorarAfinidad_primario 0.20 --prob_MejorarAfinidad_secundario 0.20 --prob_AdelantarDia 0.29 --prob_MejorOR 0.29 --prob_AdelantarTodos 0.02 --prob_CambiarPaciente1 0.10 --prob_CambiarPaciente2 0.10 --prob_CambiarPaciente3 0.10 --prob_CambiarPaciente4 0.10 --prob_CambiarPaciente5 0.10 --destruct_type 1 --prob_DestruirOR 0.20 --prob_elite 0.30 --prob_GRASP 0.30 --prob_normal 0.20 --prob_Busq 1.0 --BusqTemp yes --GRASP_alpha 0.1 --elite_size 5 --prob_GRASP1 0.30 --prob_GRASP2 0.30 --prob_GRASP3 0.40 --acceptance_criterion SA --report_minutes "0.1,0.2,0.3"
+#/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 3486 --temp_ini 1628.627 --alpha 0.998 --prob_CambiarPrimarios 0.5072 --prob_CambiarSecundarios 0.5246 --prob_MoverPaciente_bloque 0.1069 --prob_MoverPaciente_dia 0.1599 --prob_EliminarPaciente 0.2362 --prob_AgregarPaciente_1 0.6621 --prob_AgregarPaciente_2 0.9674 --prob_DestruirAgregar10 0.4148 --prob_DestruirAfinidad_Todos 0.1435 --prob_DestruirAfinidad_Uno 0.6722 --prob_PeorOR 0.2447 --prob_AniquilarAfinidad 0.6051 --prob_MejorarAfinidad_primario 0.6632 --prob_MejorarAfinidad_secundario 0.7004 --prob_AdelantarDia 0.5502 --prob_MejorOR 0.0744 --prob_AdelantarTodos 0.4141 --prob_CambiarPaciente1 0.8321 --prob_CambiarPaciente2 0.253 --prob_CambiarPaciente3 0.1407 --prob_CambiarPaciente4 0.5862 --prob_CambiarPaciente5 0.3964 --destruct_type 1 --prob_DestruirOR 0.4114 --prob_elite 0.8667 --prob_GRASP 0.1738 --prob_normal 0.1347 --prob_Busq 0.9298 --BusqTemp yes --GRASP_alpha 0.4942 --elite_size 7 --prob_GRASP1 0.3496 --prob_GRASP2 0.399 --prob_GRASP3 0.4853 --acceptance_criterion SA --tabu 0 --ini_random 0.4307 --report_minutes "0.3,1,1.5"
