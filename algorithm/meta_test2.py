@@ -889,8 +889,8 @@ def main():
     parser.add_argument("--report_minutes", type=str, default="")
 
     args = parser.parse_args()
-    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,4)];
-    seeds = list(range(1))
+    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,16)];
+    seeds = list(range(10))
     if args.report_minutes.strip():
         report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
     else:
