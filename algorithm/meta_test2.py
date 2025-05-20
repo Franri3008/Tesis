@@ -14,6 +14,7 @@ import math
 import importlib
 import argparse
 from pathlib import Path
+import collections
 
 class CSVMetaCheckpoint:
     def __init__(self, secs, csv_path, instance):
@@ -603,6 +604,7 @@ def metaheuristic(
     T = temp_inicial;
     r = 0;
     d_ = 0;
+    tabulist = collections.deque(maxlen=tabulen) if tabu else None
 
     if BusqTemp == "yes":
         BusqTemp = 1;
@@ -645,12 +647,27 @@ def metaheuristic(
         count_iter += 1;
         delta = current_cost - new_cost;
 
+        istabu_reject = False
+        sig = None
+        if tabu and tabulist is not None:
+            pac_assign = new_sol[0][0]
+            sig = tuple(pac_assign) if isinstance(pac_assign, list) else pac_assign
+            # Reject if solution is tabu and not improving the best cost
+            if sig in tabulist and new_cost >= best_cost:
+                istabu_reject = True
+        if istabu_reject:
+            d_ += 1
+            T *= alpha
+            continue
+
         ac = acceptance_criterion.lower();
         if ac == "no":
             if delta > 0:
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
+                if tabu and sig is not None and tabulist is not None:
+                    tabulist.append(sig)
                 current_cost = new_cost;
                 if new_cost < best_cost:
                     best_solution = copy.deepcopy(current_sol);
@@ -670,6 +687,8 @@ def metaheuristic(
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
+                if tabu and sig is not None and tabulist is not None:
+                    tabulist.append(sig)
                 current_cost = new_cost;
                 if new_cost < best_cost:
                     best_solution = copy.deepcopy(current_sol);
@@ -689,6 +708,8 @@ def metaheuristic(
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
+                if tabu and sig is not None and tabulist is not None:
+                    tabulist.append(sig)
                 current_cost = new_cost;
                 best_solution = copy.deepcopy(current_sol);
                 best_cost = current_cost;
@@ -868,8 +889,8 @@ def main():
     parser.add_argument("--report_minutes", type=str, default="")
 
     args = parser.parse_args()
-    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,16)];
-    seeds = list(range(10))
+    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,4)];
+    seeds = list(range(1))
     if args.report_minutes.strip():
         report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
     else:
@@ -983,4 +1004,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-#/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 200 --temp_inicial 800.0 --alpha 0.99 --prob_CambiarPrimarios 0.15 --prob_CambiarSecundarios 0.15 --prob_MoverPaciente_bloque 0.20 --prob_MoverPaciente_dia 0.10 --prob_EliminarPaciente 0.20 --prob_AgregarPaciente_1 0.19 --prob_AgregarPaciente_2 0.19 --prob_DestruirAgregar10 0.02 --prob_DestruirAfinidad_Todos 0.02 --prob_DestruirAfinidad_Uno 0.02 --prob_PeorOR 0.02 --prob_AniquilarAfinidad 0.05 --prob_MejorarAfinidad_primario 0.20 --prob_MejorarAfinidad_secundario 0.20 --prob_AdelantarDia 0.29 --prob_MejorOR 0.29 --prob_AdelantarTodos 0.02 --prob_CambiarPaciente1 0.10 --prob_CambiarPaciente2 0.10 --prob_CambiarPaciente3 0.10 --prob_CambiarPaciente4 0.10 --prob_CambiarPaciente5 0.10 --destruct_type 1 --prob_DestruirOR 0.20 --prob_elite 0.30 --prob_GRASP 0.30 --prob_normal 0.20 --prob_Busq 1.0 --BusqTemp yes --GRASP_alpha 0.1 --elite_size 5 --prob_GRASP1 0.30 --prob_GRASP2 0.30 --prob_GRASP3 0.40 --acceptance_criterion SA --report_minutes "0.1,0.3,0.5"
+#/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 200 --temp_inicial 800.0 --alpha 0.99 --prob_CambiarPrimarios 0.15 --prob_CambiarSecundarios 0.15 --prob_MoverPaciente_bloque 0.20 --prob_MoverPaciente_dia 0.10 --prob_EliminarPaciente 0.20 --prob_AgregarPaciente_1 0.19 --prob_AgregarPaciente_2 0.19 --prob_DestruirAgregar10 0.02 --prob_DestruirAfinidad_Todos 0.02 --prob_DestruirAfinidad_Uno 0.02 --prob_PeorOR 0.02 --prob_AniquilarAfinidad 0.05 --prob_MejorarAfinidad_primario 0.20 --prob_MejorarAfinidad_secundario 0.20 --prob_AdelantarDia 0.29 --prob_MejorOR 0.29 --prob_AdelantarTodos 0.02 --prob_CambiarPaciente1 0.10 --prob_CambiarPaciente2 0.10 --prob_CambiarPaciente3 0.10 --prob_CambiarPaciente4 0.10 --prob_CambiarPaciente5 0.10 --destruct_type 1 --prob_DestruirOR 0.20 --prob_elite 0.30 --prob_GRASP 0.30 --prob_normal 0.20 --prob_Busq 1.0 --BusqTemp yes --GRASP_alpha 0.1 --elite_size 5 --prob_GRASP1 0.30 --prob_GRASP2 0.30 --prob_GRASP3 0.40 --acceptance_criterion SA --report_minutes "0.1,0.2,0.3"
