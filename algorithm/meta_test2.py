@@ -32,7 +32,7 @@ class CSVMetaCheckpoint:
             self.best_gap = gap;
             self.iter_best_global = iteration;
 
-    def notify(self, elapsed, best_gap, avg_gap, iteration):
+    def notify(self, elapsed, best_gap, avg_gap, iteration, patients):
         self.avg_gap_global = avg_gap
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
@@ -42,7 +42,8 @@ class CSVMetaCheckpoint:
             "best_gap": best_gap,
             "avg_gap":  avg_gap,
             "iterations": iteration,
-            "iter_best": self.iter_best_global
+            "iter_best": self.iter_best_global,
+            "patients": patients
         }
         pd.DataFrame([row]).to_csv(
             self.targetfile,
@@ -58,15 +59,15 @@ class CSVMetaAggregator:
         self.secs       = secs
         self.targetfile = Path(csv_path)
         self.instance   = instance
-        self.data = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[]) for _ in secs]
+        self.data = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[], patients=[]) for _ in secs]
         self.first = not self.targetfile.exists()
 
-    def add(self, idx, best_gap, avg_gap, iterations, iter_best):
+    def add(self, idx, best_gap, avg_gap, iterations, iter_best, patients):
         self.data[idx]["best_gaps"].append(best_gap)
         self.data[idx]["avg_gaps"].append(avg_gap)
         self.data[idx]["iterations"].append(iterations)
         self.data[idx]["iter_bests"].append(iter_best)
-
+        self.data[idx]["patients"].append(patients)
     def finalize(self):
         rows = []
         for idx, sec in enumerate(self.secs):
@@ -78,13 +79,15 @@ class CSVMetaAggregator:
             best_gap = min(bucket["best_gaps"])
             best_idx = bucket["best_gaps"].index(best_gap)
             iter_best = bucket["iter_bests"][best_idx]
+            patients = int(sum(bucket["patients"]) / len(bucket["patients"]));
             rows.append({
                 "instance": self.instance,
                 "time": sec,
                 "best_gap": best_gap,
                 "avg_gap":  avg_gap,
                 "iterations": iterations,
-                "iter_best": iter_best
+                "iter_best": iter_best,
+                "patients": patients
             })
         if rows:
             pd.DataFrame(rows).to_csv(
@@ -105,10 +108,10 @@ class RunCheckpoint:
     def update_best(self, iteration, gap):
         self.iter_best_global = iteration
 
-    def notify(self, elapsed, best_gap, avg_gap, iteration):
+    def notify(self, elapsed, best_gap, avg_gap, iteration, patients):
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
-        self.agg.add(self.next_idx, best_gap, avg_gap, iteration, self.iter_best_global)
+        self.agg.add(self.next_idx, best_gap, avg_gap, iteration, self.iter_best_global, patients)
         self.next_idx += 1
 
 import perturbations
@@ -163,72 +166,6 @@ warnings.filterwarnings("ignore")
 # FUNCTIONS
 # ------------------------------------------------------------------------------------
 
-def EvalAllORs_old(sol, VERSION="C"):
-    fichas = [[nFichas * (d+1) for d in range(len(day))] for s in surgeon]
-    pacientes, primarios, secundarios = sol
-
-    def evalSchedule(pacientes, primarios, secundarios, or_id):
-        bloques_por_paciente = {}
-        penalizaciones = 0
-        score_or = 0
-
-        for p_idx in range(len(pacientes)):
-            if pacientes[p_idx] != -1:
-                o_p, d_p, t_p = decompress(pacientes[p_idx])
-                if o_p == or_id:
-                    duracion = OT[p_idx]
-                    prioridad_paciente = I[(p_idx, d_p)]
-                    s = primarios[pacientes[p_idx]]
-                    a = secundarios[pacientes[p_idx]]
-
-                    if p_idx not in bloques_por_paciente:
-                        bloques_por_paciente[p_idx] = []
-                        score_or += 1000 * prioridad_paciente
-                        s_idx = surgeon.index(s)
-                        cost = dictCosts[(s, a, pacientes[p_idx])]
-                        for d_aux in range(d_p, nDays):
-                            fichas[s_idx][d_aux] -= cost
-
-                    for b in range(int(duracion)):
-                        t_actual = t_p + b
-                        bloque_horario = compress(o_p, d_p, t_actual)
-                        bloques_por_paciente[p_idx].append(bloque_horario)
-                        if SP[p_idx][s] != 1:
-                            penalizaciones += 10
-                        if s == a:
-                            penalizaciones += 10
-
-        for paciente_id, bloques in bloques_por_paciente.items():
-            bloques.sort()
-            duracion = OT[paciente_id]
-            if len(bloques) != duracion:
-                penalizaciones += 50 * len(bloques)
-            if not all(bloques[i]+1 == bloques[i+1] for i in range(len(bloques)-1)):
-                penalizaciones += 100 * len(bloques)
-
-        score_or -= 10 * penalizaciones
-        return score_or
-
-    puntaje = 0
-    for or_id in room:
-        score_for_or = evalSchedule(pacientes, primarios, secundarios, or_id)
-        puntaje += score_for_or
-
-    for s_idx, s in enumerate(surgeon):
-        for d_idx in range(nDays):
-            if fichas[s_idx][d_idx] < 0:
-                penalizacion_fichas = 100 * abs(fichas[s_idx][d_idx])
-                puntaje -= penalizacion_fichas
-
-    if VERSION == "C":
-        def multiplicador(day_idx):
-            return (nDays // (day_idx + 1))
-        for s_idx, s in enumerate(surgeon):
-            for d_idx in range(nDays):
-                leftover_fichas = fichas[s_idx][d_idx]
-                puntaje -= leftover_fichas * multiplicador(d_idx)
-
-    return -1*puntaje
 
 def compress(o, d, t):
     return o * nSlot * nDays + d * nSlot + t
@@ -659,7 +596,7 @@ def metaheuristic(
                     bks=bks
                 );
     if listener:
-        listener.update_best(0, 1 - (-best_cost)/bks);
+        listener.update_best(0, best_cost);
     elite_pool = [(best_cost, copy.deepcopy(best_solution))];
     current_sol = ((best_sol[0].copy(), best_sol[1].copy(), best_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     current_cost = best_cost;
@@ -703,7 +640,7 @@ def metaheuristic(
                     SP_obj=SP,
                     bks=bks
                 );
-        cur_gap = 1 - (-current_cost) / bks;
+        cur_gap = best_cost;
         sum_gap += cur_gap;
         count_iter += 1;
         delta = current_cost - new_cost;
@@ -861,7 +798,7 @@ def metaheuristic(
         current_time = time.time();
         elapsed = current_time - initial_time
         if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
-            best_gap = 1 - (-best_cost) / bks;
+            best_gap = best_cost
             avg_gap  = sum_gap / count_iter if count_iter else best_gap;
             if listener:
                 listener.notify(elapsed, best_gap, avg_gap, i)
@@ -1039,8 +976,7 @@ def main():
 
         aggregator.finalize()
 
-        print(f"{instance_file}  |  mean_cost: {-np.mean(solutions):.5f}  "
-              f"mean_gap: {1 - (-np.mean(solutions)/bks):.5f}")
+        print(f"{instance_file}  |  mean_gap: {np.mean(solutions):.5f}")
     print(f"Total elapsed: {time.time()-overall_start:.1f} s")
 
 if __name__ == "__main__":

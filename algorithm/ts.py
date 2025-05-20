@@ -28,17 +28,19 @@ from perturbations import (
     DestruirAfinidad_Todos,DestruirAfinidad_Uno,PeorOR,AniquilarAfinidad
 )
 
-import _localsearches
-importlib.reload(_localsearches)
-from _localsearches import (
+import localsearches
+importlib.reload(localsearches)
+from localsearches import (
     MejorarAfinidad_primario,MejorarAfinidad_secundario,AdelantarDia,MejorOR,
     AdelantarTodos,CambiarPaciente1,CambiarPaciente2,CambiarPaciente3,
     CambiarPaciente4,CambiarPaciente5
 )
 
-import algorithm._initial_solutions as _initial_solutions
-importlib.reload(_initial_solutions)
-from algorithm._initial_solutions import GRASP
+import initial_solutions as initial_solutions
+importlib.reload(initial_solutions)
+from initial_solutions import GRASP
+
+from evaluation import EvalAllORs
 
 class CSVCheckpoint:
     def __init__(self, secs, csv_path, instance, aggregator=None):
@@ -57,9 +59,8 @@ class CSVCheckpoint:
         self.best_gap = gap;
         self.iter_best_global = iteration;
 
-    def notify(self, elapsed, gap, iteration):
+    def notify(self, elapsed, gap, iteration, patients):
         self.gaps.append(gap)
-
         if self.next_idx >= len(self.secs) or elapsed < self.secs[self.next_idx]:
             return
 
@@ -73,7 +74,7 @@ class CSVCheckpoint:
         if self.aggregator is not None:
             self.aggregator.add(self.next_idx,
                                 row_best, row_avg,
-                                row_iter, row_iter_best)
+                                row_iter, row_iter_best, patients)
         else:
             pd.DataFrame([{
                 "instance": self.instance,
@@ -81,7 +82,8 @@ class CSVCheckpoint:
                 "best_gap": row_best,
                 "avg_gap":  row_avg,
                 "iterations": row_iter,
-                "iter_best": row_iter_best
+                "iter_best": row_iter_best,
+                "patients": patients
             }]).to_csv(
                 self.targetfile,
                 mode="a",
@@ -92,21 +94,20 @@ class CSVCheckpoint:
         self.next_idx += 1
 
 
-# Aggregator for checkpoint stats across runs
 class CSVCheckpointAggregator:
-    """Aggregate checkpoint stats across many runs, then write averaged rows."""
     def __init__(self, secs, csv_path, instance):
         self.secs       = secs
         self.targetfile = Path(csv_path)
         self.instance   = instance
-        self.data       = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[]) for _ in secs]
+        self.data       = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[], patients=[]) for _ in secs]
         self.first      = not self.targetfile.exists()
 
-    def add(self, idx, best_gap, avg_gap, iterations, iter_best):
+    def add(self, idx, best_gap, avg_gap, iterations, iter_best, patients):
         self.data[idx]["best_gaps"].append(best_gap)
         self.data[idx]["avg_gaps"].append(avg_gap)
         self.data[idx]["iterations"].append(iterations)
         self.data[idx]["iter_bests"].append(iter_best)
+        self.data[idx]["patients"].append(patients)
 
     def finalize(self):
         rows = []
@@ -119,13 +120,15 @@ class CSVCheckpointAggregator:
             best_gap   = min(bucket["best_gaps"])
             best_idx   = bucket["best_gaps"].index(best_gap)
             iter_best  = bucket["iter_bests"][best_idx]
+            patients = int(sum(bucket["patients"]) / len(bucket["patients"]));
             rows.append({
                 "instance": self.instance,
                 "time": sec,
                 "best_gap": best_gap,
                 "avg_gap":  avg_gap,
                 "iterations": iterations,
-                "iter_best": iter_best
+                "iter_best": iter_best,
+                "patients": patients
             })
         if rows:
             pd.DataFrame(rows).to_csv(
@@ -148,7 +151,8 @@ LOCAL_SEARCHES=[
     CambiarPaciente4,CambiarPaciente5
 ];
 
-def compress(o,d,t):return o*nSlot*nDays+d*nSlot+t;
+def compress(o,d,t):
+    return o*nSlot*nDays+d*nSlot+t;
 def decompress(val):
     o=val//(nSlot*nDays);
     temp=val%(nSlot*nDays);
@@ -158,47 +162,6 @@ def decompress(val):
 
 def WhichExtra(o,t,d,e): 
     return int(extras[o][t][d%5][e]);
-
-def EvalAllORs(sol,VERSION="C"):
-    fichas=[[nFichas*(d+1) for d in range(len(day))] for s in surgeon];
-    pacientes,primarios,secundarios=sol;
-    def evalSchedule(pacientes,primarios,secundarios,or_id):
-        bloques_por_paciente={};penalizaciones=0;score_or=0;
-        for p_idx in range(len(pacientes)):
-            if pacientes[p_idx]!=-1:
-                o_p,d_p,t_p=decompress(pacientes[p_idx]);
-                if o_p==or_id:
-                    duracion=OT[p_idx];prioridad_paciente=I[(p_idx,d_p)];
-                    s=primarios[pacientes[p_idx]];a=secundarios[pacientes[p_idx]];
-                    if p_idx not in bloques_por_paciente:
-                        bloques_por_paciente[p_idx]=[];
-                        score_or+=1000*prioridad_paciente;
-                        s_idx=surgeon.index(s);cost=dictCosts[(s,a,pacientes[p_idx])];
-                        for d_aux in range(d_p,nDays):
-                            fichas[s_idx][d_aux]-=cost;
-                    for b in range(int(duracion)):
-                        t_actual=t_p+b;bloque_horario=compress(o_p,d_p,t_actual);
-                        bloques_por_paciente[p_idx].append(bloque_horario);
-                        if SP[p_idx][s]!=1:penalizaciones+=10;
-                        if s==a:penalizaciones+=10;
-        for paciente_id,bloques in bloques_por_paciente.items():
-            bloques.sort();duracion=OT[paciente_id];
-            if len(bloques)!=duracion:penalizaciones+=50*len(bloques);
-            if not all(bloques[i]+1==bloques[i+1] for i in range(len(bloques)-1)):
-                penalizaciones+=100*len(bloques);
-        score_or-=10*penalizaciones;
-        return score_or;
-    puntaje=0;
-    for or_id in room:puntaje+=evalSchedule(pacientes,primarios,secundarios,or_id);
-    for s_idx,_ in enumerate(surgeon):
-        for d_idx in range(nDays):
-            if fichas[s_idx][d_idx]<0:puntaje-=100*abs(fichas[s_idx][d_idx]);
-    if VERSION=="C":
-        def multiplicador(day_idx):return nDays//(day_idx+1);
-        for s_idx,_ in enumerate(surgeon):
-            for d_idx in range(nDays):
-                puntaje-=fichas[s_idx][d_idx]*multiplicador(d_idx);
-    return 1-(puntaje/bks);
 
 def load_data_and_config():
     global dfSurgeon, dfSecond, dfRoom, dfType, dfPatient
@@ -481,7 +444,19 @@ def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_sec
     tabu=deque(maxlen=tabu_tenure);
     current=copy.deepcopy(initial_solution);
     best=copy.deepcopy(initial_solution);
-    best_cost=EvalAllORs(best[0],"C");
+    best_cost=EvalAllORs(best[0],VERSION=version,
+                        hablar=False,
+                        nFichas_val=nFichas,
+                        day_py=day,
+                        surgeon_py=surgeon,
+                        room_py=room,
+                        OT_obj=OT,
+                        I_obj=I,
+                        dictCosts_obj=dictCosts,
+                        nDays_val=nDays,
+                        nSlot_val=nSlot,
+                        SP_obj=SP,
+                        bks=bks);
     if listener:
         listener.update_best(0, best_cost);
     no_improve_counter = 0;
@@ -499,7 +474,19 @@ def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_sec
             cand=weighted_choice(PERTURBATIONS,pert_probs)(cand,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays);
             cand=weighted_choice(LOCAL_SEARCHES,ls_probs)(cand,surgeon,second,OT,I,SP,AOR,dictCosts,nSlot,nDays);
             key=tuple(cand[0][0]);
-            c_cost=EvalAllORs(cand[0],"C");
+            c_cost=EvalAllORs(cand[0],VERSION=version,
+                        hablar=False,
+                        nFichas_val=nFichas,
+                        day_py=day,
+                        surgeon_py=surgeon,
+                        room_py=room,
+                        OT_obj=OT,
+                        I_obj=I,
+                        dictCosts_obj=dictCosts,
+                        nDays_val=nDays,
+                        nSlot_val=nSlot,
+                        SP_obj=SP,
+                        bks=bks);
             if key not in tabu or c_cost<best_cost:
                 neighbour=cand;
                 neigh_cost=c_cost;
@@ -523,7 +510,19 @@ def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_sec
                             alpha=0.1, modo=1, VERSION="C", hablar=False);
             tabu.clear();
             no_improve_counter = 0;
-            current_cost = EvalAllORs(current[0],"C");
+            current_cost = EvalAllORs(current[0],VERSION=version,
+                        hablar=False,
+                        nFichas_val=nFichas,
+                        day_py=day,
+                        surgeon_py=surgeon,
+                        room_py=room,
+                        OT_obj=OT,
+                        I_obj=I,
+                        dictCosts_obj=dictCosts,
+                        nDays_val=nDays,
+                        nSlot_val=nSlot,
+                        SP_obj=SP,
+                        bks=bks);
             if current_cost < best_cost:
                 best = copy.deepcopy(current);
                 best_cost = current_cost;
@@ -532,8 +531,9 @@ def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_sec
         elapsed=time.time()-start;
         if nxt<len(rep) and elapsed>=rep[nxt]:
             gap=best_cost;
+            patients_scheduled = sum(1 for p in best[0][0] if p != -1);
             if listener:
-                listener.notify(elapsed, gap, it);
+                listener.notify(elapsed, gap, it, patients_scheduled);
             else:
                 print(f"[{elapsed/60:.1f} min] gap = {gap}");
             nxt+=1;
@@ -576,8 +576,8 @@ def main():
                  "AdelantarDia","MejorOR","AdelantarTodos","CambiarPaciente1","CambiarPaciente2",
                  "CambiarPaciente3","CambiarPaciente4","CambiarPaciente5"]]
 
-    seeds = list(range(10))  # ten runs per instance
-    for idx in range(1, 4):
+    seeds = list(range(10)) 
+    for idx in range(1, 16):
         instance_file = f"../irace/instances/instance{idx}.json"
 
         # load instance data
@@ -623,7 +623,19 @@ def main():
                                time_limit,
                                listener,
                                args.reset_iter)
-            solutions.append(EvalAllORs(best[0], 'C'))
+            solutions.append(EvalAllORs(best[0], VERSION=version,
+                        hablar=False,
+                        nFichas_val=nFichas,
+                        day_py=day,
+                        surgeon_py=surgeon,
+                        room_py=room,
+                        OT_obj=OT,
+                        I_obj=I,
+                        dictCosts_obj=dictCosts,
+                        nDays_val=nDays,
+                        nSlot_val=nSlot,
+                        SP_obj=SP,
+                        bks=bks))
 
         aggregator.finalize()
         print(f"Instance {idx}: mean_cost = {-np.mean(solutions):.5f}, "
@@ -632,4 +644,4 @@ def main():
 if __name__=="__main__":
     main();
 
-#python ts.py --tabu_tenure 25 --reset_iter 1000 --iterations 50000 --seed 258 --report_minutes "0.1,0.2,0.3" --prob_PeorOR 2.0
+# /opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 ts.py --tabu_tenure 25 --reset_iter 1000 --iterations 50000 --seed 258 --report_minutes "0.1,0.2,0.3" --prob_PeorOR 2.0

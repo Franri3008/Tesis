@@ -549,22 +549,21 @@ def metaheuristic(
     mejores_sols = [((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy())];
     best_solution = ((initial_sol[0].copy(), initial_sol[1].copy(), initial_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     best_sol = (best_solution[0][0].copy(), best_solution[0][1].copy(), best_solution[0][2].copy());
-    best_cost = EvalAllORs(
-        best_sol,
-        VERSION=version,
-        hablar=False,
-        nFichas_val=nFichas,
-        day_py=day,
-        surgeon_py=surgeon,
-        room_py=room,
-        OT_obj=OT,
-        I_obj=I,
-        dictCosts_obj=dictCosts,
-        nDays_val=nDays,
-        nSlot_val=nSlot,
-        SP_obj=SP,
-        bks=bks
-    );
+    best_cost = EvalAllORs(best_sol,
+                            VERSION=version,
+                            hablar=False,
+                            nFichas_val=nFichas,
+                            day_py=day,
+                            surgeon_py=surgeon,
+                            room_py=room,
+                            OT_obj=OT,
+                            I_obj=I,
+                            dictCosts_obj=dictCosts,
+                            nDays_val=nDays,
+                            nSlot_val=nSlot,
+                            SP_obj=SP,
+                            bks=bks
+                        );
     elite_pool = [(best_cost, copy.deepcopy(best_solution))];
     current_sol = ((best_sol[0].copy(), best_sol[1].copy(), best_sol[2].copy()), surgeon_schedule.copy(), or_schedule.copy(), fichas.copy());
     current_cost = best_cost;

@@ -19,7 +19,7 @@ class CSVCheckpoint:
         self.iter_best_global = 0 
         self.aggregator = aggregator
 
-    def notify(self, elapsed, gap):
+    def notify(self, elapsed, gap, patients):
         self.gaps.append(gap)
         self.total_iterations += 1
 
@@ -44,7 +44,8 @@ class CSVCheckpoint:
             # forward to aggregator instead of writing
             self.aggregator.add(self.next_idx,
                                 row_best, row_avg,
-                                row_iter, row_iter_best)
+                                row_iter, row_iter_best,
+                                patients)
         else:
             pd.DataFrame([{
                 "instance": self.instance,
@@ -52,7 +53,8 @@ class CSVCheckpoint:
                 "best_gap": row_best,
                 "avg_gap":  row_avg,
                 "iterations": row_iter,
-                "iter_best": row_iter_best
+                "iter_best": row_iter_best,
+                "patients": patients
             }]).to_csv(
                 self.targetfile,
                 mode="a",
@@ -75,14 +77,15 @@ class CSVCheckpointAggregator:
         self.secs       = secs
         self.targetfile = Path(csv_path)
         self.instance   = instance
-        self.data       = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[]) for _ in secs]
+        self.data       = [dict(best_gaps=[], avg_gaps=[], iterations=[], iter_bests=[], patients=[]) for _ in secs]
         self.first      = not self.targetfile.exists()
 
-    def add(self, idx, best_gap, avg_gap, iterations, iter_best):
+    def add(self, idx, best_gap, avg_gap, iterations, iter_best, patients):
         self.data[idx]["best_gaps"].append(best_gap)
         self.data[idx]["avg_gaps"].append(avg_gap)
         self.data[idx]["iterations"].append(iterations)
         self.data[idx]["iter_bests"].append(iter_best)
+        self.data[idx]["patients"].append(patients)
 
     def finalize(self):
         rows = []
@@ -95,13 +98,15 @@ class CSVCheckpointAggregator:
             best_gap     = min(bucket["best_gaps"])
             best_idx     = bucket["best_gaps"].index(best_gap)
             iter_best    = bucket["iter_bests"][best_idx]
+            patients   = int(sum(bucket["patients"]) / len(bucket["patients"]))
             rows.append({
                 "instance": self.instance,
                 "time": sec,
                 "best_gap": best_gap,
                 "avg_gap":  avg_gap,
                 "iterations": iterations,
-                "iter_best": iter_best
+                "iter_best": iter_best,
+                "patients": patients
             })
         if rows:
             pd.DataFrame(rows).to_csv(
@@ -123,17 +128,19 @@ from perturbations import (
     DestruirAfinidad_Todos, DestruirAfinidad_Uno, PeorOR, AniquilarAfinidad
 )
 
-import _localsearches as _localsearches
-importlib.reload(_localsearches)
-from _localsearches import (
+import localsearches as localsearches
+importlib.reload(localsearches)
+from localsearches import (
     MejorarAfinidad_primario, MejorarAfinidad_secundario, AdelantarDia, MejorOR,
     AdelantarTodos, CambiarPaciente1, CambiarPaciente2, CambiarPaciente3,
     CambiarPaciente4, CambiarPaciente5
 )
 
-import algorithm._initial_solutions as _initial_solutions
-importlib.reload(_initial_solutions)
-from algorithm._initial_solutions import normal, GRASP
+import initial_solutions as initial_solutions
+importlib.reload(initial_solutions)
+from initial_solutions import normal, GRASP, complete_random
+
+from evaluation import EvalAllORs 
 
 testing=False; parametroFichas=0.11; entrada="etapa1"; version="C"; solucion_inicial=True
 
@@ -148,60 +155,6 @@ LOCAL_SEARCHES=[
     AdelantarTodos, CambiarPaciente1, CambiarPaciente2, CambiarPaciente3,
     CambiarPaciente4, CambiarPaciente5
 ]
-
-def EvalAllORs(sol, VERSION="C"):
-    fichas=[[nFichas*(d+1) for d in range(len(day))] for s in surgeon]
-    if len(sol) < 3:
-        raise ValueError("Solution tuple must contain at least 3 elements")
-    pacientes, primarios, secundarios = sol[:3]
-    def evalSchedule(pacientes,primarios,secundarios,or_id):
-        bloques_por_paciente = {}; penalizaciones = 0; score_or = 0
-        for p_idx in range(len(pacientes)):
-            if pacientes[p_idx] != -1:
-                o_p, d_p, t_p = decompress(pacientes[p_idx])
-                if o_p == or_id:
-                    duracion = OT[p_idx]
-                    prioridad_paciente = I[(p_idx, d_p)]
-                    s = primarios.get(pacientes[p_idx])
-                    a = secundarios.get(pacientes[p_idx])
-                    if s is None or a is None:
-                        # missing mapping – treat as infeasible block
-                        penalizaciones += 1000
-                        continue
-                    if p_idx not in bloques_por_paciente:
-                        bloques_por_paciente[p_idx] = []
-                        score_or += 1000 * prioridad_paciente
-                        s_idx = surgeon.index(s)
-                        cost = dictCosts[(s, a, pacientes[p_idx])]
-                        for d_aux in range(d_p, nDays):
-                            fichas[s_idx][d_aux] -= cost
-                    for b in range(int(duracion)):
-                        t_actual = t_p + b
-                        bloques_por_paciente[p_idx].append(compress(o_p, d_p, t_actual))
-                        if SP[p_idx][s] != 1:
-                            penalizaciones += 10
-                        if s == a:
-                            penalizaciones += 10
-        for paciente_id, bloques in bloques_por_paciente.items():
-            bloques.sort()
-            duracion = OT[paciente_id]
-            if len(bloques) != duracion:
-                penalizaciones += 50 * len(bloques)
-            if not all(bloques[i] + 1 == bloques[i + 1] for i in range(len(bloques) - 1)):
-                penalizaciones += 100 * len(bloques)
-        score_or -= 10 * penalizaciones
-        return score_or
-    puntaje=0
-    for or_id in room: puntaje+=evalSchedule(pacientes,primarios,secundarios,or_id)
-    for s_idx in range(len(surgeon)):
-        for d_idx in range(nDays):
-            if fichas[s_idx][d_idx]<0: puntaje-=100*abs(fichas[s_idx][d_idx])
-    if VERSION=="C":
-        def mult(day_idx): return nDays//(day_idx+1)
-        for s_idx in range(len(surgeon)):
-            for d_idx in range(nDays):
-                puntaje-=fichas[s_idx][d_idx]*mult(d_idx)
-    return 1-(puntaje/bks)
 
 def compress(o,d,t): 
     return o*nSlot*nDays+d*nSlot+t
@@ -484,8 +437,6 @@ def load_data_and_config():
     nFichas = int((parametroFichas * 4 * nSlot * len(room) * 2 * 3 )/(len(surgeon)**0.5));
 
 def weighted_choice(items, weights):
-    """Return one element from *items* chosen proportionally to *weights*.
-       Items whose weight is <=0 are ignored."""
     pool = [(item, w) for item, w in zip(items, weights) if w > 0]
     if not pool:
         return random.choice(items)
@@ -499,10 +450,20 @@ def weighted_choice(items, weights):
 
 def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report_secs, time_limit, listener=None, iterations=None):
     random.seed(seed)
-
-    # work with the full 4‑component solution
     current = copy.deepcopy(initial_solution)
-    current_cost = EvalAllORs(current[0], VERSION="C")
+    current_cost = EvalAllORs(current[0], VERSION=version,
+                            hablar=False,
+                            nFichas_val=nFichas,
+                            day_py=day,
+                            surgeon_py=surgeon,
+                            room_py=room,
+                            OT_obj=OT,
+                            I_obj=I,
+                            dictCosts_obj=dictCosts,
+                            nDays_val=nDays,
+                            nSlot_val=nSlot,
+                            SP_obj=SP,
+                            bks=bks)
 
     best = copy.deepcopy(current)
     best_cost = current_cost
@@ -511,8 +472,6 @@ def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report
     rep = sorted(report_secs)
     nxt = 0
     it = 0
-
-    # ensure the listener starts with a valid solution
     if listener and listener.best_solution is None:
         listener.best_solution = copy.deepcopy(current)
 
@@ -525,7 +484,6 @@ def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report
             if result is not None:
                 neighbour = result
         except Exception as e:
-            # invalid neighbour – keep current solution
             neighbour = copy.deepcopy(current)
         try:
             ls_func = weighted_choice(LOCAL_SEARCHES, ls_probs)
@@ -536,7 +494,19 @@ def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report
             # keep neighbour unchanged if LS fails
             pass
         try:
-            neigh_cost = EvalAllORs(neighbour[0], VERSION="C")
+            neigh_cost = EvalAllORs(neighbour[0],VERSION=version,
+                                    hablar=False,
+                                    nFichas_val=nFichas,
+                                    day_py=day,
+                                    surgeon_py=surgeon,
+                                    room_py=room,
+                                    OT_obj=OT,
+                                    I_obj=I,
+                                    dictCosts_obj=dictCosts,
+                                    nDays_val=nDays,
+                                    nSlot_val=nSlot,
+                                    SP_obj=SP,
+                                    bks=bks)
         except Exception:
             # fall back to a very bad cost so the neighbour is rejected
             neigh_cost = float('inf')
@@ -553,10 +523,23 @@ def sa(initial_solution, temp_inicial, alpha, pert_probs, ls_probs, seed, report
         elapsed = time.time()-init_time
         
         if listener:
-            listener.notify(elapsed, best_cost)
+            patients_scheduled = sum(1 for p in best[0][0] if p != -1)
+            listener.notify(elapsed, best_cost, patients_scheduled)
             if listener.should_restart():
                 current = copy.deepcopy(listener.best_solution)
-                current_cost = EvalAllORs(current[0], VERSION="C")
+                current_cost = EvalAllORs(current[0], VERSION=version,
+                                        hablar=False,
+                                        nFichas_val=nFichas,
+                                        day_py=day,
+                                        surgeon_py=surgeon,
+                                        room_py=room,
+                                        OT_obj=OT,
+                                        I_obj=I,
+                                        dictCosts_obj=dictCosts,
+                                        nDays_val=nDays,
+                                        nSlot_val=nSlot,
+                                        SP_obj=SP,
+                                        bks=bks)
                 temp = temp_inicial
                 listener.reset()
 
@@ -637,7 +620,19 @@ def main():
                           time_limit=time_limit,
                           listener=checkpoint_listener,
                           iterations=args.iterations if not report_secs else None)
-                solutions.append(EvalAllORs(best[0], VERSION="C"))
+                solutions.append(EvalAllORs(best[0],VERSION=version,
+                                    hablar=False,
+                                    nFichas_val=nFichas,
+                                    day_py=day,
+                                    surgeon_py=surgeon,
+                                    room_py=room,
+                                    OT_obj=OT,
+                                    I_obj=I,
+                                    dictCosts_obj=dictCosts,
+                                    nDays_val=nDays,
+                                    nSlot_val=nSlot,
+                                    SP_obj=SP,
+                                    bks=bks))
             aggregator.finalize()
             print(f"Instance {i}: mean_cost = {-np.mean(solutions):.5f}, "
                   f"mean_gap = {1 - (-np.mean(solutions)/bks):.5f}")
