@@ -510,6 +510,7 @@ def main():
     parser.add_argument("--iterations",type=int,default=5000)
     parser.add_argument("--seed",type=int,default=258)
     parser.add_argument("--max_no_improve",type=int,default=1000)
+    parser.add_argument("--ils_extra", type=float, default=0.05);
     for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
               "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
               "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]:
@@ -536,7 +537,7 @@ def main():
                                              "ils_checkpoints.csv",
                                              f"instance{i}")
         load_data_and_config()
-        initial=GRASP(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,
+        initial=normal(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,
                       SP,COIN,OT,alpha=0.1,modo=1,VERSION="C",hablar=False)
         pert_probs=[getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
                   "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",

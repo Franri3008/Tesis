@@ -491,7 +491,7 @@ def metaheuristic(
         prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
         prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
         prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
-        prob_Pert=1, prob_Busq=1, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
+        prob_Pert=1, prob_Busq=1, BusqTemp="yes",ils_extra=0.05, semilla=258, GRASP_alpha=0.1, elite_size=5,
         prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
         acceptance_criterion="SA", tabu=False, tabulen=10, ini_random=0.05):
     random.seed(semilla);
@@ -622,9 +622,7 @@ def metaheuristic(
                     elite_pool = elite_pool[:elite_size];
                     if 'iter_best' not in locals():
                         iter_best = i
-                d_ = 0;
-            else:
-                d_ += 1;
+
         elif ac == "sa":
             if delta > 0 or random.random() < math.exp(delta / T):
                 metadata_pert[last_p][1] += 1;
@@ -639,11 +637,9 @@ def metaheuristic(
                     elite_pool = elite_pool[:elite_size];
                     if 'iter_best' not in locals():
                         iter_best = i
-                d_ = 0;
-            else:
-                d_ += 1;
+
         elif ac == "ils":
-            if new_cost < best_cost:
+            if new_cost < (1 + ils_extra) * best_cost:
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
@@ -655,11 +651,9 @@ def metaheuristic(
                 elite_pool = elite_pool[:elite_size];
                 if 'iter_best' not in locals():
                     iter_best = i
-                d_ = 0;
             else:
                 current_sol = copy.deepcopy(best_solution);
                 current_cost = best_cost;
-                d_ = 0;
         else:
             raise ValueError(f"Unknown acceptance criterion: {acceptance_criterion}");
 
@@ -749,6 +743,7 @@ def metaheuristic(
                 );
             T = temp_inicial;
             d_ = 0;
+        d_ += 1;
         current_time = time.time();
         if current_time - initial_time >= 90:
             mejores_sols.append(copy.deepcopy(current_sol));
@@ -804,6 +799,7 @@ def main():
     parser.add_argument("--prob_normal", type=float, default=0.2)
     parser.add_argument("--prob_Busq", type=float, default=1.0)
     parser.add_argument("--BusqTemp", type=str, default="yes")
+    parser.add_argument("--ils_extra", type=float, default=0.05)
     parser.add_argument("--GRASP_alpha", type=float, default=0.1)
     parser.add_argument("--elite_size", type=int, default=5)
     parser.add_argument("--prob_GRASP1", type=float, default=0.3)
@@ -853,6 +849,7 @@ def main():
     prob_Pert                    = 1;
     prob_Busq                    = args.prob_Busq;
     BusqTemp                     = args.BusqTemp;
+    ils_extra                    = args.ils_extra;
     GRASP_alpha                  = args.GRASP_alpha;
     elite_size                   = args.elite_size;
     prob_GRASP1                  = args.prob_GRASP1;
@@ -887,7 +884,7 @@ def main():
     all_iters     = [];
     all_best_iters= [];
     all_num_sched = [];
-    for ejec in range(3):
+    for ejec in range(2):
         best_solution, stats = metaheuristic(
             inicial, max_iter=max_iter, destruct_type=destruct_type, destruct=destruct, temp_inicial=temp_inicial, alpha=alpha,
             prob_CambiarPrimarios=prob_CambiarPrimarios, prob_CambiarSecundarios=prob_CambiarSecundarios,
@@ -900,7 +897,7 @@ def main():
             prob_AdelantarTodos=prob_AdelantarTodos,
             prob_CambiarPaciente1=prob_CambiarPaciente1, prob_CambiarPaciente2=prob_CambiarPaciente2, 
             prob_CambiarPaciente3=prob_CambiarPaciente3, prob_CambiarPaciente4=prob_CambiarPaciente4, prob_CambiarPaciente5=prob_CambiarPaciente5,
-            prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, prob_normal=prob_normal,
+            prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, ils_extra=ils_extra, prob_normal=prob_normal,
             prob_Pert=prob_Pert, prob_Busq=prob_Busq, BusqTemp=BusqTemp, semilla=ejec, GRASP_alpha=GRASP_alpha, 
             elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3,
             tabu=tabu, tabulen=tabulen,

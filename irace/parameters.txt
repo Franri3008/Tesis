@@ -1,4 +1,4 @@
-destruct  "--destruct " i (100, 10000) | destruct_type == 1
+destruct  "--destruct " i (10, 5000) | destruct_type == 1
 temp_ini  "--temp_ini " r (100.0, 2000.0) | acceptance_criterion == "SA"
 alpha     "--alpha " r (0.90, 0.999) | acceptance_criterion == "SA"
 

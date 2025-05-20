@@ -520,7 +520,7 @@ def metaheuristic(
         prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
         prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
         prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
-        prob_Pert=1, prob_Busq=1, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
+        prob_Pert=1, prob_Busq=1, ils_extra=0.05, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
         prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
         acceptance_criterion="SA", tabu=False, tabulen=10, ini_random=0.05):
     random.seed(semilla);
@@ -679,10 +679,8 @@ def metaheuristic(
                     if 'iter_best' not in locals():
                         iter_best = i
                     if listener:
-                        listener.update_best(i, 1 - (-best_cost)/bks);
-                d_ = 0;
-            else:
-                d_ += 1;
+                        listener.update_best(i, best_cost);
+
         elif ac == "sa":
             if delta > 0 or random.random() < math.exp(delta / T):
                 metadata_pert[last_p][1] += 1;
@@ -700,12 +698,9 @@ def metaheuristic(
                     if 'iter_best' not in locals():
                         iter_best = i
                     if listener:
-                        listener.update_best(i, 1 - (-best_cost)/bks);
-                d_ = 0;
-            else:
-                d_ += 1;
+                        listener.update_best(i, best_cost);
         elif ac == "ils":
-            if new_cost < best_cost:
+            if new_cost < (1 + ils_extra) *best_cost:
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
@@ -720,12 +715,10 @@ def metaheuristic(
                 if 'iter_best' not in locals():
                     iter_best = i
                 if listener:
-                    listener.update_best(i, 1 - (-best_cost)/bks);
-                d_ = 0;
+                    listener.update_best(i, best_cost);
             else:
                 current_sol = copy.deepcopy(best_solution);
                 current_cost = best_cost;
-                d_ = 0;
         else:
             raise ValueError(f"Unknown acceptance criterion: {acceptance_criterion}");
 
@@ -817,6 +810,7 @@ def metaheuristic(
                 );
             T = temp_inicial;
             d_ = 0;
+        d_ += 1;
         current_time = time.time();
         elapsed = current_time - initial_time
         if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
@@ -878,6 +872,7 @@ def main():
     parser.add_argument("--prob_normal", type=float, default=0.2)
     parser.add_argument("--prob_Busq", type=float, default=1.0)
     parser.add_argument("--BusqTemp", type=str, default="no")
+    parser.add_argument("--ils_extra", type=float, default=0.05)
     parser.add_argument("--GRASP_alpha", type=float, default=0.1)
     parser.add_argument("--elite_size", type=int, default=5)
     parser.add_argument("--prob_GRASP1", type=float, default=0.3)
@@ -890,7 +885,7 @@ def main():
     parser.add_argument("--report_minutes", type=str, default="")
 
     args = parser.parse_args()
-    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,3)];
+    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,4)];
     seeds = list(range(1))
     if args.report_minutes.strip():
         report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
@@ -966,6 +961,7 @@ def main():
                 prob_Pert=1,
                 prob_Busq=args.prob_Busq,
                 BusqTemp=args.BusqTemp,
+                ils_extra=args.ils_extra,
                 semilla=ejec,
                 GRASP_alpha=args.GRASP_alpha,
                 elite_size=args.elite_size,
@@ -1005,4 +1001,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-#/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 3486 --temp_ini 1628.627 --alpha 0.998 --prob_CambiarPrimarios 0.5072 --prob_CambiarSecundarios 0.5246 --prob_MoverPaciente_bloque 0.1069 --prob_MoverPaciente_dia 0.1599 --prob_EliminarPaciente 0.2362 --prob_AgregarPaciente_1 0.6621 --prob_AgregarPaciente_2 0.9674 --prob_DestruirAgregar10 0.4148 --prob_DestruirAfinidad_Todos 0.1435 --prob_DestruirAfinidad_Uno 0.6722 --prob_PeorOR 0.2447 --prob_AniquilarAfinidad 0.6051 --prob_MejorarAfinidad_primario 0.6632 --prob_MejorarAfinidad_secundario 0.7004 --prob_AdelantarDia 0.5502 --prob_MejorOR 0.0744 --prob_AdelantarTodos 0.4141 --prob_CambiarPaciente1 0.8321 --prob_CambiarPaciente2 0.253 --prob_CambiarPaciente3 0.1407 --prob_CambiarPaciente4 0.5862 --prob_CambiarPaciente5 0.3964 --destruct_type 1 --prob_DestruirOR 0.4114 --prob_elite 0.8667 --prob_GRASP 0.1738 --prob_normal 0.1347 --prob_Busq 0.9298 --BusqTemp yes --GRASP_alpha 0.4942 --elite_size 7 --prob_GRASP1 0.3496 --prob_GRASP2 0.399 --prob_GRASP3 0.4853 --acceptance_criterion SA --tabu 0 --ini_random 0.4307 --report_minutes "0.3,1,1.5"
+'''
+/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 400 --temp_ini 1628.627 --alpha 0.998 --prob_CambiarPrimarios 0.5072 --prob_CambiarSecundarios 0.5246 --prob_MoverPaciente_bloque 0.1069 --prob_MoverPaciente_dia 0.1599 --prob_EliminarPaciente 0.2362 --prob_AgregarPaciente_1 0.6621 --prob_AgregarPaciente_2 0.9674 --prob_DestruirAgregar10 0.4148 --prob_DestruirAfinidad_Todos 0.1435 --prob_DestruirAfinidad_Uno 0.6722 --prob_PeorOR 0.2447 --prob_AniquilarAfinidad 0.6051 --prob_MejorarAfinidad_primario 0.6632 --prob_MejorarAfinidad_secundario 0.7004 --prob_AdelantarDia 0.5502 --prob_MejorOR 0.0744 --prob_AdelantarTodos 0.4141 --prob_CambiarPaciente1 0.8321 --prob_CambiarPaciente2 0.253 --prob_CambiarPaciente3 0.1407 --prob_CambiarPaciente4 0.5862 --prob_CambiarPaciente5 0.3964 --destruct_type 1 --prob_DestruirOR 0.4114 --prob_elite 0.8667 --prob_GRASP 0.1738 --prob_normal 0.1347 --prob_Busq 0.9298 --BusqTemp yes --GRASP_alpha 0.4942 --elite_size 7 --prob_GRASP1 0.3496 --prob_GRASP2 0.399 --prob_GRASP3 0.4853 --acceptance_criterion SA --tabu 0 --ini_random 0.4307 --report_minutes "0.3,1,1.5"
+'''
