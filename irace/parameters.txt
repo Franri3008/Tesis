@@ -34,6 +34,7 @@ prob_normal "--prob_normal " r (0.00, 1.00) | destruct_type == 1
 
 prob_Busq "--prob_Busq " r (0.00, 1.00)
 BusqTemp "--BusqTemp " c ("yes", "no") | acceptance_criterion == "SA"
+ils_extra "--ils_extra " r (0.00, 0.20) | acceptance_criterion == "ILS"
 
 GRASP_alpha "--GRASP_alpha " r (0.01, 1.00)
 elite_size "--elite_size " i (1, 10)
@@ -42,10 +43,10 @@ prob_GRASP1 "--prob_GRASP1 " r (0.01, 1.00) | destruct_type == 1
 prob_GRASP2 "--prob_GRASP2 " r (0.01, 1.00) | destruct_type == 1
 prob_GRASP3 "--prob_GRASP3 " r (0.01, 1.00) | destruct_type == 1
 
-acceptance_criterion "--acceptance_criterion " c ("SA", "ILS")
+acceptance_criterion "--acceptance_criterion " c ("NO", "SA", "ILS")
 tabu "--tabu " c (0, 1)
 tabulen "--tabulen " i (1, 10000) | tabu == 1
-ini_random "--ini_random " i (0.00, 1.00)
+ini_random "--ini_random " r (0.00, 1.00)
 
 [global]
 digits = 4

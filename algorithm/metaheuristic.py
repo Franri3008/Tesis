@@ -490,7 +490,7 @@ def metaheuristic(
     prob_MejorOR=29, prob_AdelantarTodos=2, prob_CambiarPaciente1=10, prob_CambiarPaciente2=10, 
     prob_CambiarPaciente3=10, prob_CambiarPaciente4=10, prob_CambiarPaciente5=10,
     prob_DestruirOR=0.2, prob_elite=0.3, prob_GRASP=0.3, prob_normal=0.2,
-    prob_Pert=1, prob_Busq=1, BusqTemp="yes", semilla=258, GRASP_alpha=0.1, elite_size=5,
+    prob_Pert=1, prob_Busq=1, BusqTemp="yes", ils_extra=0.05, semilla=258, GRASP_alpha=0.1, elite_size=5,
     prob_GRASP1=0.3, prob_GRASP2=0.3, prob_GRASP3=0.4,
     acceptance_criterion="SA", tabu=False, tabulen=10, ini_random=0.05):
     random.seed(semilla);
@@ -620,7 +620,6 @@ def metaheuristic(
             if sig in tabulist and new_cost >= best_cost:
                 istabu_reject = True
         if istabu_reject:
-            d_ += 1
             T *= alpha
             continue
 
@@ -639,9 +638,7 @@ def metaheuristic(
                     elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                     elite_pool.sort(key=lambda x: x[0], reverse=False);
                     elite_pool = elite_pool[:elite_size];
-                    d_ = 0;
-            else:
-                d_ += 1;
+                    
         elif ac == "sa":
             if delta > 0 or random.random() < math.exp(delta / T):
                 metadata_pert[last_p][1] += 1;
@@ -656,11 +653,9 @@ def metaheuristic(
                     elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                     elite_pool.sort(key=lambda x: x[0], reverse=False);
                     elite_pool = elite_pool[:elite_size];
-                    d_ = 0;
-            else:
-                d_ += 1;
+        
         elif ac == "ils":
-            if new_cost < (1 + valor) * best_cost:
+            if new_cost < (1 + ils_extra) * best_cost:
                 metadata_pert[last_p][1] += 1;
                 metadata_search[last_s][1] += 1;
                 current_sol = copy.deepcopy(new_sol);
@@ -672,11 +667,9 @@ def metaheuristic(
                 elite_pool.append((best_cost, copy.deepcopy(best_solution)));
                 elite_pool.sort(key=lambda x: x[0], reverse=False);
                 elite_pool = elite_pool[:elite_size];
-                d_ = 0;
             else:
-                #current_sol = copy.deepcopy(best_solution);
-                #current_cost = best_cost;
-                d_ += 1;
+                current_sol = copy.deepcopy(best_solution);
+                current_cost = best_cost;
         else:
             raise ValueError(f"criterio equivocado: {acceptance_criterion}");
 
@@ -763,8 +756,9 @@ def metaheuristic(
                 );
             T = temp_inicial;
             d_ = 0;
+        d_ += 1;
         current_time = time.time();
-        if current_time - initial_time >= 60:
+        if current_time - initial_time >= 90:
             mejores_sols.append(copy.deepcopy(current_sol));
             break;
 
@@ -816,6 +810,7 @@ def main():
     parser.add_argument("--prob_normal", type=float, default=0.2)
     parser.add_argument("--prob_Busq", type=float, default=1.0)
     parser.add_argument("--BusqTemp", type=str, default="yes")
+    parser.add_argument("--ils_extra", type=float, default=0.05)
     parser.add_argument("--GRASP_alpha", type=float, default=0.1)
     parser.add_argument("--elite_size", type=int, default=5)
     parser.add_argument("--prob_GRASP1", type=float, default=0.3)
@@ -845,7 +840,7 @@ def main():
     prob_DestruirAfinidad_Todos  = args.prob_DestruirAfinidad_Todos;
     prob_DestruirAfinidad_Uno    = args.prob_DestruirAfinidad_Uno;
     prob_PeorOR                  = args.prob_PeorOR;
-    prob_AniquilarAfinidad       = args.prob_AniquilarAfinidad;
+    prob_AniquilarAfinidad = args.prob_AniquilarAfinidad;
     prob_MejorarAfinidad_primario= args.prob_MejorarAfinidad_primario;
     prob_MejorarAfinidad_secundario= args.prob_MejorarAfinidad_secundario;
     prob_AdelantarDia = args.prob_AdelantarDia;
@@ -864,6 +859,7 @@ def main():
     prob_Pert = 1;
     prob_Busq = args.prob_Busq;
     BusqTemp = args.BusqTemp;
+    ils_extra = args.ils_extra;
     GRASP_alpha = args.GRASP_alpha;
     elite_size = args.elite_size;
     prob_GRASP1 = args.prob_GRASP1;
@@ -875,7 +871,7 @@ def main():
     ini_random = args.ini_random;
 
     random.seed(seed);
-    max_iter = 125000;
+    max_iter = 150000;
 
     with open(instance_file, 'r') as f:
         data = json.load(f);
@@ -909,7 +905,7 @@ def main():
             prob_CambiarPaciente1=prob_CambiarPaciente1, prob_CambiarPaciente2=prob_CambiarPaciente2, 
             prob_CambiarPaciente3=prob_CambiarPaciente3, prob_CambiarPaciente4=prob_CambiarPaciente4, prob_CambiarPaciente5=prob_CambiarPaciente5,
             prob_DestruirOR=prob_DestruirOR, prob_elite=prob_elite, prob_GRASP=prob_GRASP, prob_normal=prob_normal,
-            prob_Pert=prob_Pert, prob_Busq=prob_Busq, BusqTemp=BusqTemp, semilla=ejec, GRASP_alpha=GRASP_alpha, 
+            prob_Pert=prob_Pert, prob_Busq=prob_Busq, BusqTemp=BusqTemp, ils_extra=ils_extra, semilla=ejec, GRASP_alpha=GRASP_alpha, 
             elite_size=elite_size, prob_GRASP1=prob_GRASP1, prob_GRASP2=prob_GRASP2, prob_GRASP3=prob_GRASP3,
             tabu=tabu, tabulen=tabulen,
             acceptance_criterion=acceptance_criterion, ini_random=ini_random
