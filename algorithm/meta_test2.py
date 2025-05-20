@@ -800,8 +800,9 @@ def metaheuristic(
         if next_report_idx < len(report_secs_sorted) and elapsed >= report_secs_sorted[next_report_idx]:
             best_gap = best_cost
             avg_gap  = sum_gap / count_iter if count_iter else best_gap;
+            patients = sum(1 for p in best_solution[0][0] if p != -1)
             if listener:
-                listener.notify(elapsed, best_gap, avg_gap, i)
+                listener.notify(elapsed, best_gap, avg_gap, i, patients)
             else:
                 print(f"[{elapsed/60:.1f} min] gap = {best_gap}")
             next_report_idx += 1
@@ -982,4 +983,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-#python meta_test2.py --destruct 200 --temp_inicial 800.0 --alpha 0.99 --prob_CambiarPrimarios 0.15 --prob_CambiarSecundarios 0.15 --prob_MoverPaciente_bloque 0.20 --prob_MoverPaciente_dia 0.10 --prob_EliminarPaciente 0.20 --prob_AgregarPaciente_1 0.19 --prob_AgregarPaciente_2 0.19 --prob_DestruirAgregar10 0.02 --prob_DestruirAfinidad_Todos 0.02 --prob_DestruirAfinidad_Uno 0.02 --prob_PeorOR 0.02 --prob_AniquilarAfinidad 0.05 --prob_MejorarAfinidad_primario 0.20 --prob_MejorarAfinidad_secundario 0.20 --prob_AdelantarDia 0.29 --prob_MejorOR 0.29 --prob_AdelantarTodos 0.02 --prob_CambiarPaciente1 0.10 --prob_CambiarPaciente2 0.10 --prob_CambiarPaciente3 0.10 --prob_CambiarPaciente4 0.10 --prob_CambiarPaciente5 0.10 --destruct_type 1 --prob_DestruirOR 0.20 --prob_elite 0.30 --prob_GRASP 0.30 --prob_normal 0.20 --prob_Busq 1.0 --BusqTemp yes --GRASP_alpha 0.1 --elite_size 5 --prob_GRASP1 0.30 --prob_GRASP2 0.30 --prob_GRASP3 0.40 --acceptance_criterion SA --report_minutes "0.1,0.3,0.5"
+#/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 200 --temp_inicial 800.0 --alpha 0.99 --prob_CambiarPrimarios 0.15 --prob_CambiarSecundarios 0.15 --prob_MoverPaciente_bloque 0.20 --prob_MoverPaciente_dia 0.10 --prob_EliminarPaciente 0.20 --prob_AgregarPaciente_1 0.19 --prob_AgregarPaciente_2 0.19 --prob_DestruirAgregar10 0.02 --prob_DestruirAfinidad_Todos 0.02 --prob_DestruirAfinidad_Uno 0.02 --prob_PeorOR 0.02 --prob_AniquilarAfinidad 0.05 --prob_MejorarAfinidad_primario 0.20 --prob_MejorarAfinidad_secundario 0.20 --prob_AdelantarDia 0.29 --prob_MejorOR 0.29 --prob_AdelantarTodos 0.02 --prob_CambiarPaciente1 0.10 --prob_CambiarPaciente2 0.10 --prob_CambiarPaciente3 0.10 --prob_CambiarPaciente4 0.10 --prob_CambiarPaciente5 0.10 --destruct_type 1 --prob_DestruirOR 0.20 --prob_elite 0.30 --prob_GRASP 0.30 --prob_normal 0.20 --prob_Busq 1.0 --BusqTemp yes --GRASP_alpha 0.1 --elite_size 5 --prob_GRASP1 0.30 --prob_GRASP2 0.30 --prob_GRASP3 0.40 --acceptance_criterion SA --report_minutes "0.1,0.3,0.5"
