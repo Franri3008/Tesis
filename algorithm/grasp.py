@@ -436,7 +436,6 @@ def main():
     parser=argparse.ArgumentParser();
     parser.add_argument("--iterations",type=int,default=5000);
     parser.add_argument("--seed",type=int,default=258);
-    parser.add_argument("--report_minutes",type=str,default="");
     parser.add_argument("--time_limit",type=int,default=3600);
     for s in ["MejorarAfinidad_primario","MejorarAfinidad_secundario","AdelantarDia","MejorOR",
               "AdelantarTodos","CambiarPaciente1","CambiarPaciente2","CambiarPaciente3",
@@ -445,7 +444,7 @@ def main():
     parser.add_argument("--report_minutes", type=str, default="");
     args, _ = parser.parse_known_args();
     report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()] if args.report_minutes.strip() else [];
-    
+
     seeds=list(range(10));
     for i in range(1,16):
         with open(f"../irace/instances/instance{i}.json","r") as f:
