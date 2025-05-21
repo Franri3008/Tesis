@@ -497,8 +497,9 @@ def vns(initial_solution,k_max,pert_probs,ls_probs,seed,report_secs, listener=No
         elapsed=time.time()-start;
         if nxt<len(rep) and elapsed>=rep[nxt]:
             gap=best_cost;
+            patients_scheduled = sum(1 for p in best[0][0] if p != -1);
             if listener:
-                listener.notify(elapsed, gap, it);
+                listener.notify(elapsed, gap, it, patients_scheduled);
             else:
                 print(f"[{elapsed/60:.1f} min] gap = {gap}");
             nxt+=1;

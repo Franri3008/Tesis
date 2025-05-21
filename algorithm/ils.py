@@ -527,18 +527,22 @@ def main():
 
     for i in range(1, 16):
         instance_file = f"../irace/instances/instance{i}.json"
-        with open(instance_file,'r') as f: data=json.load(f)
+        with open(instance_file,'r') as f: 
+            data=json.load(f)
         global typePatients,nPatients,nDays,nSurgeons,bks,nFichas,min_affinity,day,slot
-        typePatients=data["patients"]; nPatients=int(data["n_patients"]); nDays=int(data["days"])
-        nSurgeons=int(data["surgeons"]); bks=int(data["bks"]); nFichas=int(data["fichas"])
+        typePatients=data["patients"]; 
+        nPatients=int(data["n_patients"]); 
+        nDays=int(data["days"])
+        nSurgeons=int(data["surgeons"]); 
+        bks=int(data["bks"]); 
+        nFichas=int(data["fichas"])
         min_affinity=int(data["min_affinity"]); time_limit=int(data["time_limit"])
-        # Aggregator for this instance
         aggregator = CSVCheckpointAggregator(report_secs,
                                              "ils_checkpoints.csv",
                                              f"instance{i}")
         load_data_and_config()
         initial=normal(surgeon,second,patient,room,day,slot,AOR,I,dictCosts,nFichas,nSlot,
-                      SP,COIN,OT,alpha=0.1,modo=1,VERSION="C",hablar=False)
+                      SP,COIN,OT,VERSION="C",hablar=False)
         pert_probs=[getattr(args,f"prob_{p}") for p in ["CambiarPrimarios","CambiarSecundarios","MoverPaciente_bloque","MoverPaciente_dia",
                   "EliminarPaciente","AgregarPaciente_1","AgregarPaciente_2","DestruirAgregar10",
                   "DestruirAfinidad_Todos","DestruirAfinidad_Uno","PeorOR","AniquilarAfinidad"]]

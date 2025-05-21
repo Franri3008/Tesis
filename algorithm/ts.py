@@ -38,7 +38,7 @@ from localsearches import (
 
 import initial_solutions as initial_solutions
 importlib.reload(initial_solutions)
-from initial_solutions import GRASP
+from initial_solutions import GRASP, normal
 
 from evaluation import EvalAllORs
 
@@ -547,7 +547,7 @@ def tabu_search(initial_solution,tabu_tenure,pert_probs,ls_probs,seed,report_sec
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tabu_tenure", type=int, default=20)
+    parser.add_argument("--tabulen", type=int, default=20)
     parser.add_argument("--seed", type=int, default=258)
     parser.add_argument("--iterations", type=int, default=0)
     parser.add_argument("--reset_iter", type=int, default=1000)
@@ -599,9 +599,9 @@ def main():
                                              f"instance{idx}")
         solutions = []
 
-        initial = GRASP(surgeon, second, patient, room, day, slot, AOR, I,
+        initial = normal(surgeon, second, patient, room, day, slot, AOR, I,
                         dictCosts, nFichas, nSlot, SP, COIN, OT,
-                        alpha=0.1, modo=1, VERSION="C", hablar=False)
+                        VERSION="C", hablar=False)
 
         for ejec in seeds:
             listener = CSVCheckpoint(report_secs,
@@ -610,7 +610,7 @@ def main():
                                      aggregator=aggregator)
 
             best = tabu_search(initial,
-                               args.tabu_tenure,
+                               args.tabulen,
                                pert_probs,
                                ls_probs,
                                ejec,
