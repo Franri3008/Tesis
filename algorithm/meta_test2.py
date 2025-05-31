@@ -70,34 +70,36 @@ class CSVMetaAggregator:
         self.data[idx]["iter_bests"].append(iter_best)
         self.data[idx]["patients"].append(patients)
     def finalize(self):
-        rows = []
+        rows = [];
         for idx, sec in enumerate(self.secs):
-            bucket = self.data[idx]
+            bucket = self.data[idx];
             if not bucket["best_gaps"]:
-                continue
-            avg_gap = sum(bucket["avg_gaps"]) / len(bucket["avg_gaps"])
-            iterations = int(sum(bucket["iterations"]) / len(bucket["iterations"]))
-            best_gap = min(bucket["best_gaps"])
-            best_idx = bucket["best_gaps"].index(best_gap)
-            iter_best = bucket["iter_bests"][best_idx]
+                continue;
+            avg_gap = sum(bucket["avg_gaps"]) / len(bucket["avg_gaps"]);
+            iterations = int(sum(bucket["iterations"]) / len(bucket["iterations"]));
+            best_gap = min(bucket["best_gaps"]);
+            best_idx = bucket["best_gaps"].index(best_gap);
+            iter_best = bucket["iter_bests"][best_idx];
             patients = int(sum(bucket["patients"]) / len(bucket["patients"]));
+            std_gap = float(np.std(bucket["best_gaps"])) if len(bucket["best_gaps"]) > 1 else 0.0;
             rows.append({
                 "instance": self.instance,
                 "time": sec,
                 "best_gap": best_gap,
-                "avg_gap":  avg_gap,
+                "avg_gap": avg_gap,
+                "std_gap": std_gap,
                 "iterations": iterations,
                 "iter_best": iter_best,
                 "patients": patients
-            })
+            });
         if rows:
             pd.DataFrame(rows).to_csv(
                 self.targetfile,
                 mode='a',
                 index=False,
                 header=self.first
-            )
-            self.first = False
+            );
+            self.first = False;
 
 class RunCheckpoint:
     def __init__(self, secs, aggregator):
@@ -885,8 +887,8 @@ def main():
     parser.add_argument("--report_minutes", type=str, default="")
 
     args = parser.parse_args()
-    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,4)];
-    seeds = list(range(1))
+    instance_files = [f"../irace/instances/instance{i}.json" for i in range(1,16)];
+    seeds = list(range(2))
     if args.report_minutes.strip():
         report_secs = [float(x)*60 for x in args.report_minutes.split(",") if x.strip()]
     else:
@@ -1002,5 +1004,5 @@ if __name__ == "__main__":
     main()
 
 '''
-/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 400 --temp_ini 1628.627 --alpha 0.998 --prob_CambiarPrimarios 0.5072 --prob_CambiarSecundarios 0.5246 --prob_MoverPaciente_bloque 0.1069 --prob_MoverPaciente_dia 0.1599 --prob_EliminarPaciente 0.2362 --prob_AgregarPaciente_1 0.6621 --prob_AgregarPaciente_2 0.9674 --prob_DestruirAgregar10 0.4148 --prob_DestruirAfinidad_Todos 0.1435 --prob_DestruirAfinidad_Uno 0.6722 --prob_PeorOR 0.2447 --prob_AniquilarAfinidad 0.6051 --prob_MejorarAfinidad_primario 0.6632 --prob_MejorarAfinidad_secundario 0.7004 --prob_AdelantarDia 0.5502 --prob_MejorOR 0.0744 --prob_AdelantarTodos 0.4141 --prob_CambiarPaciente1 0.8321 --prob_CambiarPaciente2 0.253 --prob_CambiarPaciente3 0.1407 --prob_CambiarPaciente4 0.5862 --prob_CambiarPaciente5 0.3964 --destruct_type 1 --prob_DestruirOR 0.4114 --prob_elite 0.8667 --prob_GRASP 0.1738 --prob_normal 0.1347 --prob_Busq 0.9298 --BusqTemp yes --GRASP_alpha 0.4942 --elite_size 7 --prob_GRASP1 0.3496 --prob_GRASP2 0.399 --prob_GRASP3 0.4853 --acceptance_criterion SA --tabu 0 --ini_random 0.4307 --report_minutes "0.3,1,1.5"
+/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/bin/python3.10 meta_test2.py --destruct 1393 --temp_ini 1418.3483 --alpha 0.9054 --prob_CambiarPrimarios 0.2313 --prob_CambiarSecundarios 0.5683 --prob_MoverPaciente_bloque 0.4668 --prob_MoverPaciente_dia 0.0819 --prob_EliminarPaciente 0.2909 --prob_AgregarPaciente_1 0.818 --prob_AgregarPaciente_2 0.9374 --prob_DestruirAgregar10 0.0075 --prob_DestruirAfinidad_Todos 0.8507 --prob_DestruirAfinidad_Uno 0.6235 --prob_PeorOR 0.083 --prob_AniquilarAfinidad 0.8652 --prob_MejorarAfinidad_primario 0.1577 --prob_MejorarAfinidad_secundario 0.8466 --prob_AdelantarDia 0.1675 --prob_MejorOR 0.7261 --prob_AdelantarTodos 0.5719 --prob_CambiarPaciente1 0.8781 --prob_CambiarPaciente2 0.6697 --prob_CambiarPaciente3 0.4274 --prob_CambiarPaciente4 0.3976 --prob_CambiarPaciente5 0.2363 --destruct_type 1 --prob_DestruirOR 0.0835 --prob_elite 0.3681 --prob_GRASP 0.3139 --prob_normal 0.6798 --prob_Busq 0.7958 --BusqTemp no --GRASP_alpha 0.4382 --elite_size 10 --prob_GRASP1 0.2209 --prob_GRASP2 0.1493 --prob_GRASP3 0.3596 --acceptance_criterion SA --tabu 1 --tabulen 7387 --ini_random 0.3173 --report_minutes "0.3,0.5"
 '''
